@@ -1,0 +1,27 @@
+# Notify when a Nova Post parcel is ready for pickup.
+#
+# Nova Poshta's own StatusCode vocabulary has no "out for delivery today"
+# state (courier delivery isn't split out from the rest of transit) — the
+# state that actually matters here is arriving at a branch or parcel locker,
+# `at_pickup_point`, so that is what this example fires on instead.
+
+alias: "Nova Post: ready for pickup"
+description: Notify when a tracked Nova Post parcel arrives at a branch or parcel locker.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: nova_post_parcel_status_changed
+
+conditions:
+  - condition: template
+    value_template: "{{ trigger.event.data.new_status == 'at_pickup_point' }}"
+
+actions:
+  - action: notify.mobile_app
+    data:
+      title: "Nova Post parcel ready for pickup"
+      message: >-
+        {{ trigger.event.data.barcode }} is ready to collect
+        {% if trigger.event.data.pickup_point %}at {{ trigger.event.data.pickup_point }}{% endif %}.
