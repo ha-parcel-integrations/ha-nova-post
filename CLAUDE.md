@@ -106,7 +106,8 @@ section is the HA-side decisions and the pre-1.0 posture.
   warning. Do not wire these up without a real capture in
   `carrier-research/api/nova-post/`. No public consumer tracking-page URL has
   ever been captured for `url`, so that one stays `None` on its own,
-  unrelated basis.
+  unrelated basis. Reflected in `const.py`'s `CAPABILITIES` (feeds the docs
+  site's comparison table) — keep the two in agreement if that ever changes.
 - **`weight` and `dimensions` are untouched.** Four more weight fields
   (`FactualWeight`/`VolumeWeight`/`CalculatedWeight`/`CheckWeight`) are now
   known field names alongside `DocumentWeight`, but which one populates and

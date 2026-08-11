@@ -28,6 +28,21 @@ class ParcelStatus(StrEnum):
 
 PLATFORMS = [Platform.BUTTON, Platform.CALENDAR, Platform.SENSOR]
 
+# Every optional key the parcel contract defines. CAPABILITIES below must be a
+# subset of this — it exists so a typo in CAPABILITIES fails a test instead of
+# silently dropping this carrier off a table on the docs site.
+KNOWN_CAPABILITIES = frozenset(
+    {"weight", "dimensions", "delivery_window", "pickup_point", "url", "history"}
+)
+
+# Which optional contract fields this carrier's API actually populates — feeds
+# the comparison table on the docs site. Keep in lockstep with
+# normalize_parcel() in parcels.py: everything not listed here comes back as a
+# literal None there. Nova Post confirms weight (DocumentWeight) and the
+# destination pickup_point (WarehouseRecipient); dimensions, delivery_window,
+# url, and history all stay unconfirmed None until a real capture settles them.
+CAPABILITIES = frozenset({"weight", "pickup_point"})
+
 # Nova Poshta's official JSON-RPC tracking endpoint (``novaposhta.ua``, *not*
 # the weaker-evidence ``novapost.com`` REST surface — see
 # carrier-research/nova-post.md#build). One POST, one
