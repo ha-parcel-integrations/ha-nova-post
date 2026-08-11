@@ -1,0 +1,135 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Налаштування Nova Post",
+        "description": "Для відстеження Nova Post не потрібен обліковий запис чи поштовий індекс — хаб створюється одразу. Посилки додавайте пізніше через параметри інтеграції або сервіс `nova_post.track_parcel`."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post вже налаштовано."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Параметри Nova Post",
+        "sections": {
+          "parcels": {
+            "name": "Посилки",
+            "data": {
+              "add": "Додати посилку",
+              "remove": "Видалити посилки"
+            },
+            "data_description": {
+              "add": "Введіть номер відстеження (ТТН) Nova Post, щоб почати її відстежувати. Його можна знайти в підтвердженні відправлення або на картці про невдалу доставку."
+            }
+          },
+          "delivered": {
+            "name": "Доставлені посилки",
+            "data": {
+              "delivered_filter_type": "Фільтрувати за",
+              "delivered_filter_amount": "Кількість"
+            },
+            "data_description": {
+              "delivered_filter_type": "Показувати доставлені посилки за останні X днів або обмежити до X останніх.",
+              "delivered_filter_amount": "Кількість днів або посилок для показу."
+            }
+          },
+          "polling": {
+            "name": "Оновлення",
+            "data": {
+              "refresh_interval": "Оновлювати кожні"
+            },
+            "data_description": {
+              "refresh_interval": "Як часто інтеграція перевіряє Nova Post на наявність оновлень щодо посилок. Повільніший інтервал менше навантажує API Nova Post; типове значення 30 хвилин цілком достатнє для більшості посилок."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "Це не схоже на номер відстеження Nova Post.",
+      "already_tracked": "Ця посилка вже відстежується."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 хвилин",
+        "30": "30 хвилин",
+        "60": "60 хвилин",
+        "120": "120 хвилин",
+        "240": "240 хвилин"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Дні",
+        "parcels": "Кількість посилок"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Відстежити посилку",
+      "description": "Почати відстеження посилки за номером відстеження Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Номер відстеження",
+          "description": "Номер відстеження (ТТН) Nova Post."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Припинити відстеження посилки",
+      "description": "Припинити відстеження посилки за номером відстеження Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Номер відстеження",
+          "description": "Номер відстеження (ТТН) Nova Post, яку потрібно припинити відстежувати."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Посилку зареєстровано",
+      "parcel_status_changed": "Статус посилки змінився",
+      "parcel_delivered": "Посилку доставлено",
+      "parcel_delivery_time_changed": "Очікуваний час доставки посилки змінився"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Оновити"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Доставки"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Посилки в дорозі",
+        "unit_of_measurement": "посилок"
+      },
+      "next_delivery": {
+        "name": "Наступна доставка"
+      },
+      "delivered_parcels": {
+        "name": "Доставлені посилки",
+        "unit_of_measurement": "посилок"
+      },
+      "last_update": {
+        "name": "Останнє успішне оновлення"
+      },
+      "parcel": {
+        "name": "Посилка {barcode}"
+      }
+    }
+  }
+}
