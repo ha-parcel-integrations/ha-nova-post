@@ -1,0 +1,144 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nustatyti Nova Post",
+        "description": "Nova Post sekimui nereikia paskyros ar pašto kodo — centras sukuriamas iš karto. Siuntinius pridėsite vėliau per integracijos parinktis arba paslaugą `nova_post.track_parcel`."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post jau sukonfigūruota."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nova Post parinktys",
+        "sections": {
+          "parcels": {
+            "name": "Siuntiniai",
+            "data": {
+              "add": "Pridėti siuntinį",
+              "remove": "Pašalinti siuntinius"
+            },
+            "data_description": {
+              "add": "Įveskite Nova Post sekimo kodą, kad pradėtumėte sekti siuntinį. Jį rasite siuntimo patvirtinime arba pranešime apie nepristatytą siuntą."
+            }
+          },
+          "delivered": {
+            "name": "Pristatyti siuntiniai",
+            "data": {
+              "delivered_filter_type": "Filtruoti pagal",
+              "delivered_filter_amount": "Kiekis"
+            },
+            "data_description": {
+              "delivered_filter_type": "Rodyti per pastarąsias X dienas pristatytus siuntinius arba apriboti iki X naujausių.",
+              "delivered_filter_amount": "Rodytinų dienų arba siuntinių skaičius."
+            }
+          },
+          "history": {
+            "name": "Siuntinio istorija",
+            "data": {
+              "include_history": "Įtraukti būsenų istoriją"
+            },
+            "data_description": {
+              "include_history": "Prideda kiekvienam siuntiniui istorijos atributą, kuriame išvardyti visi sekimo įvykiai (laiko žyma, būsena, originalus tekstas). Numatytai išjungta."
+            }
+          },
+          "polling": {
+            "name": "Užklausos",
+            "data": {
+              "refresh_interval": "Atnaujinti kas"
+            },
+            "data_description": {
+              "refresh_interval": "Kaip dažnai integracija tikrina Nova Post siuntinių atnaujinimus. Lėtesnis intervalas švelnesnis Nova Post API; numatytosios 30 minučių pakanka daugumai siuntinių."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "Tai nepanašu į Nova Post sekimo kodą.",
+      "already_tracked": "Šis siuntinys jau sekamas."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minučių",
+        "30": "30 minučių",
+        "60": "60 minučių",
+        "120": "120 minučių",
+        "240": "240 minučių"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Dienos",
+        "parcels": "Siuntinių skaičius"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Sekti siuntinį",
+      "description": "Pradeda sekti siuntinį pagal jo Nova Post sekimo kodą.",
+      "fields": {
+        "tracking_code": {
+          "name": "Sekimo kodas",
+          "description": "Nova Post sekimo kodas."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Nebesekti siuntinio",
+      "description": "Sustabdo siuntinio sekimą pagal jo Nova Post sekimo kodą.",
+      "fields": {
+        "tracking_code": {
+          "name": "Sekimo kodas",
+          "description": "Nova Post sekimo kodas, kurio sekimą reikia sustabdyti."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Siuntinys užregistruotas",
+      "parcel_status_changed": "Siuntinio būsena pasikeitė",
+      "parcel_delivered": "Siuntinys pristatytas",
+      "parcel_delivery_time_changed": "Numatomas siuntinio pristatymo laikas pasikeitė"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Atnaujinti"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Pristatymai"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Gaunami siuntiniai",
+        "unit_of_measurement": "siuntinių"
+      },
+      "next_delivery": {
+        "name": "Kitas pristatymas"
+      },
+      "delivered_parcels": {
+        "name": "Pristatyti siuntiniai",
+        "unit_of_measurement": "siuntinių"
+      },
+      "last_update": {
+        "name": "Paskutinis sėkmingas atnaujinimas"
+      },
+      "parcel": {
+        "name": "Siuntinys {barcode}"
+      }
+    }
+  }
+}

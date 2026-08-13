@@ -38,34 +38,55 @@ KNOWN_CAPABILITIES = frozenset(
 # Which optional contract fields this carrier's API actually populates — feeds
 # the comparison table on the docs site. Keep in lockstep with
 # normalize_parcel() in parcels.py: everything not listed here comes back as a
-# literal None there. Nova Post confirms weight (DocumentWeight) and the
-# destination pickup_point (WarehouseRecipient); dimensions, delivery_window,
-# url, and history all stay unconfirmed None until a real capture settles them.
-CAPABILITIES = frozenset({"weight", "pickup_point"})
-
-# Nova Poshta's official JSON-RPC tracking endpoint (``novaposhta.ua``, *not*
-# the weaker-evidence ``novapost.com`` REST surface — see
-# carrier-research/nova-post.md#build). One POST, one
-# fixed URL — the tracking code travels in the request body, not the URL, so
-# unlike most sibling carriers this is not a ``.format()`` template.
+# literal None there.
 #
-# No auth: every call sends ``apiKey: ""`` (see api.py) — that is a deliberate
-# anonymous path for this one method, live-confirmed by probing all four
-# methods either of the two known HA client repos call, not a validation gap.
-# Envelope is always HTTP 200 / ``success: true``; branch on
-# ``data[0]["StatusCode"]``, never on ``success`` or the HTTP status — see
-# carrier-research/api/nova-post/tracking.md#envelope-and-the-not-found-signal.
-#
-# No rate-limit evidence either way (``rate_limit: unknown``) — only a handful
-# of probe requests have ever been sent against this endpoint.
-TRACKING_API_URL = "https://api.novaposhta.ua/v2.0/json/"
+# **2026-08-13: moved from getStatusDocuments to the /site/v.1.0/ REST
+# surface** (carrier-research/nova-post.md "## Build", addendum 2026-08-13) on
+# the strength of a real captured payload (TTN 12348). That surface confirms
+# ``weight`` (kg), ``dimensions`` (cm), ``pickup_point``, ``url`` (a real
+# constructible consumer deep link) and ``history`` (an ordered, geo-tagged
+# timeline) — everything the old surface lacked except delivery_window, which
+# comes along for free from ``scheduled_delivery_date``. The trade: this
+# surface's ``sender``/``recipient`` carry geography (country/settlement) only,
+# never a name — the old ``SenderFullNameEW``/``RecipientFullName`` fields have
+# no equivalent here. ``sender``/``receiver`` are not part of
+# ``KNOWN_CAPABILITIES`` so that loss does not show up on the docs site; see
+# CLAUDE.md for the full trade-off writeup.
+CAPABILITIES = frozenset(
+    {"weight", "dimensions", "delivery_window", "pickup_point", "url", "history"}
+)
 
-# No public consumer tracking-page URL has ever been captured for Nova Poshta
-# (see carrier-research/api/nova-post/tracking.md#payload--canonical-mapping).
-# Guessing a
-# query-parameter name risks shipping a link that silently 404s for every
-# user, so the canonical ``url`` field is hard-coded ``None`` in parcels.py
-# instead of being built from a template here.
+# The website's public tracking API (``/site/v.1.0/``), value-confirmed
+# 2026-08-13 against a real in-flight parcel — see
+# carrier-research/nova-post.md#surface-keyless-by-number-rest-novapostcom-sitev10
+# and carrier-research/api/nova-post/novapost-tracking.md#surface-b--the-website-api-sitev10-keyless.
+# GET, keyless, the tracking code travels in the URL path (unlike the old
+# JSON-RPC surface's request-body ``Documents`` list).
+#
+# Host is ``novaposhta.ua``, not ``novapost.com``: both are live-confirmed to
+# serve byte-identical bodies for the same TTN (one shared NOVA-group backend,
+# two brand hostnames), and ``novaposhta.ua`` matches this integration's
+# existing branding and its tracking-page URL below.
+#
+# No auth of any kind. A bogus/unknown number answers a plain
+# ``404 {"errors":{"errorMessage":"not_found"}}`` — unlike the old surface
+# there is no second, different not-found shape, and this route accepts any
+# string, not just 14-digit TTNs.
+#
+# No rate-limit evidence either way (25 back-to-back probes, no throttling
+# observed) — ``rate_limit: none-observed``, still not enough traffic to call
+# it settled.
+TRACKING_API_URL = "https://api.novaposhta.ua/site/v.1.0/shipments/tracking/{ttn}"
+
+# The consumer tracking page this same surface backs — confirmed by reading
+# the site's own JS bundle: it calls exactly this REST route, client-side,
+# unauthenticated (carrier-research/api/nova-post/novapost-tracking.md#the-consumer-tracking-pages-call-this-route).
+# ``novaposhta.ua`` takes at most one optional locale segment and defaults
+# (Ukrainian) with none, so the no-prefix form is the one guaranteed to
+# resolve regardless of the user's language — unlike ``novapost.com``, which
+# requires a two-segment ``{lang}-{country}`` tag this integration has no
+# per-user locale to fill in.
+TRACKING_URL_TEMPLATE = "https://novaposhta.ua/tracking/{ttn}"
 
 # Tracked parcels live in the config entry options as a list of
 # ``{tracking_code}`` dicts — this carrier has no account or parcel feed, so the
@@ -95,10 +116,15 @@ CONF_REFRESH_INTERVAL = "refresh_interval"
 REFRESH_INTERVAL_OPTIONS = (15, 30, 60, 120, 240)
 DEFAULT_REFRESH_INTERVAL = 30
 
-# No ``include_history`` option. ``getStatusDocuments`` looks like a single
-# current-state snapshot — no history/events array has been observed or is
-# implied by either HA client repo that calls this method (see
-# carrier-research/api/nova-post/tracking.md#payload). Faking a timeline by
-# accumulating polls locally would differ per user depending on when they
-# installed the integration, so ``history`` is always ``None`` instead — same
-# call as Budbee's, for the same reason.
+# Per-parcel status history is opt-in and off by default, identical across the
+# suite. The ``/site/v.1.0/`` surface's ``tracking[]`` array is real and rich
+# (a geo-tagged, ordered timeline — see parcels.py) and costs no extra
+# request, unlike the old ``getStatusDocuments`` surface which had no events
+# array at all. Kept off by default anyway: it is a large attribute, and the
+# suite's convention does not special-case "free" history.
+CONF_INCLUDE_HISTORY = "include_history"
+DEFAULT_INCLUDE_HISTORY = False
+
+# Cap each parcel's history to the most recent N events so the attribute stays
+# well under HA's ~16 KB state-attribute limit.
+HISTORY_MAX_EVENTS = 20

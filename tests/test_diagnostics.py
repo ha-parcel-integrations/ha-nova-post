@@ -18,13 +18,29 @@ async def test_diagnostics_redacts_and_counts(hass):
             "status": "out_for_delivery",
             "pickup_point": "Example Branch 1",
             "raw": {
-                "Number": "20450000000001",
-                "StatusCode": "5",
-                "Status": "В дорозі",
-                "WarehouseRecipient": "Example Branch 1",
-                "CitySender": "Example City A",
-                "PhoneSender": "380000000000",
-                "DocumentCost": "150",
+                "number": "20450000000001",
+                "sender": {"country_code": "CN", "latitude": 22.7, "longitude": 113.5},
+                "recipient": {"country_code": "MD", "settlement": "Chișinău"},
+                "tracking": [
+                    {
+                        "number": "20450000000001",
+                        "code": "5",
+                        "event_name": "In transit",
+                        "division_name": "Example Branch 1",
+                        "settlement_name": "Example City B",
+                        "post_code": "MD-2069",
+                        "division_coordinates": {"latitude": 47.0, "longitude": 28.8},
+                    }
+                ],
+                "alternative_numbers": ["20450000000001", "SHCN8143247690"],
+                "parcels": [
+                    {
+                        "number": "20450000000001",
+                        "parcel_description": "example contents",
+                        "insurance_cost": 98.62,
+                        "insurance_cost_currency_code": "MDL",
+                    }
+                ],
             },
         }
     ]
@@ -37,68 +53,25 @@ async def test_diagnostics_redacts_and_counts(hass):
     assert result["entry_options"]["parcels"][0]["tracking_code"] == "**REDACTED**"
     assert result["incoming"][0]["barcode"] == "**REDACTED**"
     assert result["incoming"][0]["pickup_point"] == "**REDACTED**"
-    assert result["incoming"][0]["raw"]["Number"] == "**REDACTED**"
-    assert result["incoming"][0]["raw"]["WarehouseRecipient"] == "**REDACTED**"
-    assert result["incoming"][0]["raw"]["CitySender"] == "**REDACTED**"
-    assert result["incoming"][0]["raw"]["PhoneSender"] == "**REDACTED**"
-    assert result["incoming"][0]["raw"]["DocumentCost"] == "**REDACTED**"
+    raw = result["incoming"][0]["raw"]
+    assert raw["number"] == "**REDACTED**"
+    # sender/recipient are redacted as whole blocks — they carry GPS
+    # coordinates, which is narrower than any address.
+    assert raw["sender"] == "**REDACTED**"
+    assert raw["recipient"] == "**REDACTED**"
+    assert raw["alternative_numbers"] == "**REDACTED**"
+    hop = raw["tracking"][0]
+    assert hop["number"] == "**REDACTED**"
+    assert hop["division_name"] == "**REDACTED**"
+    assert hop["settlement_name"] == "**REDACTED**"
+    assert hop["post_code"] == "**REDACTED**"
+    assert hop["division_coordinates"] == "**REDACTED**"
+    parcel = raw["parcels"][0]
+    assert parcel["number"] == "**REDACTED**"
+    assert parcel["parcel_description"] == "**REDACTED**"
+    assert parcel["insurance_cost"] == "**REDACTED**"
+    assert parcel["insurance_cost_currency_code"] == "**REDACTED**"
     # non-identifying fields survive, or the diagnostics would be useless
     assert result["incoming"][0]["status"] == "out_for_delivery"
-    assert result["incoming"][0]["raw"]["StatusCode"] == "5"
-    assert result["incoming"][0]["raw"]["Status"] == "В дорозі"
-
-
-async def test_diagnostics_redacts_unnamed_city_and_phone_siblings():
-    """City*/Phone* families are redacted by prefix, not just by the one
-    exactly-enumerated name — their full set of sibling keys is unconfirmed
-    (see carrier-research/api/nova-post/tracking.md#payload)."""
-    from custom_components.nova_post.diagnostics import _redact
-
-    redacted = _redact(
-        {
-            "CityRecipientDescription": "Example City B",
-            "PhoneRecipient": "380000000001",
-            "StatusCode": "5",
-        }
-    )
-    assert redacted["CityRecipientDescription"] == "**REDACTED**"
-    assert redacted["PhoneRecipient"] == "**REDACTED**"
-    assert redacted["StatusCode"] == "5"
-
-
-async def test_diagnostics_redacts_2026_08_10_named_fields():
-    """The fields the 2026-08-10 128-key enumeration newly named — party
-    names, fuller pickup-point identity, undelivery reasons, payment
-    status — are all exact-key redacted, not just caught defensively by a
-    prefix."""
-    from custom_components.nova_post.diagnostics import _redact
-
-    redacted = _redact(
-        {
-            "RecipientFullName": "Приклад Отримувач",
-            "RecipientFullNameEW": "Example Recipient",
-            "SenderFullNameEW": "Example Sender LLC",
-            "WarehouseRecipientAddress": "Example Street 1",
-            "WarehouseRecipientNumber": "42",
-            "ParentBranchName": "Example Regional Branch",
-            "UndeliveryReasons": "Recipient unavailable",
-            "UndeliveryReasonsDate": "2026-08-10",
-            "UndeliveryReasonsSubtypeDescription": "No answer at the door",
-            "PaymentStatus": "Paid",
-            "StatusCode": "5",
-        }
-    )
-    for key in (
-        "RecipientFullName",
-        "RecipientFullNameEW",
-        "SenderFullNameEW",
-        "WarehouseRecipientAddress",
-        "WarehouseRecipientNumber",
-        "ParentBranchName",
-        "UndeliveryReasons",
-        "UndeliveryReasonsDate",
-        "UndeliveryReasonsSubtypeDescription",
-        "PaymentStatus",
-    ):
-        assert redacted[key] == "**REDACTED**"
-    assert redacted["StatusCode"] == "5"
+    assert hop["code"] == "5"
+    assert hop["event_name"] == "In transit"

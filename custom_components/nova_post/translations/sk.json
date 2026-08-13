@@ -1,0 +1,144 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nastaviť Nova Post",
+        "description": "Sledovanie Nova Post nevyžaduje účet ani PSČ — hub sa vytvorí okamžite. Zásielky potom pridáte cez možnosti integrácie alebo službu `nova_post.track_parcel`."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post je už nastavené."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Možnosti Nova Post",
+        "sections": {
+          "parcels": {
+            "name": "Zásielky",
+            "data": {
+              "add": "Pridať zásielku",
+              "remove": "Odstrániť zásielky"
+            },
+            "data_description": {
+              "add": "Zadajte sledovací kód Nova Post, aby ste zásielku začali sledovať. Nájdete ho na potvrdení o odoslaní alebo oznámení o nedoručení."
+            }
+          },
+          "delivered": {
+            "name": "Doručené zásielky",
+            "data": {
+              "delivered_filter_type": "Filtrovať podľa",
+              "delivered_filter_amount": "Počet"
+            },
+            "data_description": {
+              "delivered_filter_type": "Zobraziť doručené zásielky za posledných X dní alebo obmedziť na X najnovších.",
+              "delivered_filter_amount": "Počet dní alebo zásielok na zobrazenie."
+            }
+          },
+          "history": {
+            "name": "História zásielky",
+            "data": {
+              "include_history": "Zahrnúť históriu stavov"
+            },
+            "data_description": {
+              "include_history": "Pridá ku každej zásielke atribút histórie so všetkými sledovacími udalosťami (čas, stav, pôvodný text). V predvolenom nastavení vypnuté."
+            }
+          },
+          "polling": {
+            "name": "Dopytovanie",
+            "data": {
+              "refresh_interval": "Aktualizovať každých"
+            },
+            "data_description": {
+              "refresh_interval": "Ako často integrácia kontroluje Nova Post kvôli aktualizáciám zásielok. Pomalší interval je šetrnejší k API Nova Post; predvolených 30 minút stačí pre väčšinu zásielok."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "To nevyzerá ako sledovací kód Nova Post.",
+      "already_tracked": "Táto zásielka sa už sleduje."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minút",
+        "30": "30 minút",
+        "60": "60 minút",
+        "120": "120 minút",
+        "240": "240 minút"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Dni",
+        "parcels": "Počet zásielok"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Sledovať zásielku",
+      "description": "Spustí sledovanie zásielky podľa jej sledovacieho kódu Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Sledovací kód",
+          "description": "Sledovací kód Nova Post."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Prestať sledovať zásielku",
+      "description": "Ukončí sledovanie zásielky podľa jej sledovacieho kódu Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Sledovací kód",
+          "description": "Sledovací kód Nova Post, ktorý sa má prestať sledovať."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Zásielka bola zaregistrovaná",
+      "parcel_status_changed": "Stav zásielky sa zmenil",
+      "parcel_delivered": "Zásielka bola doručená",
+      "parcel_delivery_time_changed": "Očakávaný čas doručenia zásielky sa zmenil"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Aktualizovať"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Doručenia"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Prichádzajúce zásielky",
+        "unit_of_measurement": "zásielok"
+      },
+      "next_delivery": {
+        "name": "Ďalšie doručenie"
+      },
+      "delivered_parcels": {
+        "name": "Doručené zásielky",
+        "unit_of_measurement": "zásielok"
+      },
+      "last_update": {
+        "name": "Posledná úspešná aktualizácia"
+      },
+      "parcel": {
+        "name": "Zásielka {barcode}"
+      }
+    }
+  }
+}

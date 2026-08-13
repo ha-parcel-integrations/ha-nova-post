@@ -133,11 +133,11 @@ async def test_update_skips_items_missing_a_tracking_code(hass):
 
 
 async def test_update_backfills_missing_number(hass):
-    """An edge payload without ``Number`` keeps the requested code."""
+    """An edge payload without ``number`` keeps the requested code."""
     entry = _entry_with([{CONF_TRACKING_CODE: OTHER_CODE}])
     entry.add_to_hass(hass)
     sample = in_transit_sample()
-    del sample["Number"]
+    del sample["number"]
     client = AsyncMock()
     client.async_get_parcel.return_value = sample
     coordinator = NovaPostCoordinator(hass, client, entry)
@@ -152,7 +152,7 @@ async def test_update_prunes_cache_for_untracked_parcels(hass):
     client = AsyncMock()
     client.async_get_parcel.return_value = delivered_sample()
     coordinator = NovaPostCoordinator(hass, client, entry)
-    coordinator._raw_cache["GONE"] = {"Number": "GONE"}
+    coordinator._raw_cache["GONE"] = {"number": "GONE"}
 
     await coordinator._async_update_data()
 

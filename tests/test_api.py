@@ -9,8 +9,9 @@ from custom_components.nova_post.api import (
     NovaPostApiClient,
     NovaPostApiError,
 )
+from custom_components.nova_post.const import TRACKING_API_URL
 
-from .payloads import ACTIVE_CODE, in_transit_sample, not_found_sample
+from .payloads import ACTIVE_CODE, in_transit_sample
 
 
 def _session_returning(status: int, body: object = None) -> MagicMock:
@@ -24,42 +25,34 @@ def _session_returning(status: int, body: object = None) -> MagicMock:
     ctx.__aenter__ = AsyncMock(return_value=response)
     ctx.__aexit__ = AsyncMock(return_value=False)
     session = MagicMock()
-    session.post = MagicMock(return_value=ctx)
+    session.get = MagicMock(return_value=ctx)
     return session
 
 
-async def test_get_parcel_returns_data_item_on_success():
-    session = _session_returning(200, {"success": True, "data": [in_transit_sample()]})
+async def test_get_parcel_returns_body_on_success():
+    session = _session_returning(200, in_transit_sample())
     client = NovaPostApiClient(session)
 
     parcel = await client.async_get_parcel(ACTIVE_CODE)
 
-    assert parcel["Number"] == ACTIVE_CODE
-    assert parcel["StatusCode"] == "5"
+    assert parcel["number"] == ACTIVE_CODE
+    assert parcel["tracking"][0]["code"] == "5"
 
 
-async def test_get_parcel_sends_the_documented_request_body():
-    session = _session_returning(200, {"success": True, "data": [in_transit_sample()]})
+async def test_get_parcel_requests_the_documented_url():
+    session = _session_returning(200, in_transit_sample())
     client = NovaPostApiClient(session)
 
     await client.async_get_parcel(ACTIVE_CODE)
 
-    _, kwargs = session.post.call_args
-    body = kwargs["json"]
-    assert body["apiKey"] == ""  # deliberate: always the literal empty string
-    assert body["modelName"] == "TrackingDocument"
-    assert body["calledMethod"] == "getStatusDocuments"
-    assert body["methodProperties"]["Documents"] == [
-        {"DocumentNumber": ACTIVE_CODE}
-    ]
+    (url,), _ = session.get.call_args
+    assert url == TRACKING_API_URL.format(ttn=ACTIVE_CODE)
 
 
-async def test_get_parcel_returns_none_when_not_found():
-    """StatusCode 3 ('Номер не знайдено') is a normal state, not an error —
-    the not-found signal itself, confirmed live against a bogus TTN."""
-    client = NovaPostApiClient(
-        _session_returning(200, {"success": True, "data": [not_found_sample()]})
-    )
+async def test_get_parcel_returns_none_on_404():
+    """A bogus/unknown number answers a plain 404 — a normal state, not an
+    error."""
+    client = NovaPostApiClient(_session_returning(404, {"errors": {"errorMessage": "not_found"}}))
     assert await client.async_get_parcel("20450000000000") is None
 
 
@@ -81,48 +74,24 @@ async def test_get_parcel_raises_on_non_object_body():
         await client.async_get_parcel(ACTIVE_CODE)
 
 
-async def test_get_parcel_raises_on_success_false():
-    """success: false never comes from the not-found case (that is still
-    success: true) — treated as an unexpected envelope, never branched on as
-    if it meant "not found"."""
-    client = NovaPostApiClient(
-        _session_returning(200, {"success": False, "errors": ["API key incorrect"]})
-    )
-    with pytest.raises(NovaPostApiError) as err:
-        await client.async_get_parcel(ACTIVE_CODE)
-    assert "API key incorrect" in str(err.value)
-
-
-async def test_get_parcel_raises_on_success_false_without_errors():
-    client = NovaPostApiClient(_session_returning(200, {"success": False}))
-    with pytest.raises(NovaPostApiError):
-        await client.async_get_parcel(ACTIVE_CODE)
-
-
-async def test_get_parcel_raises_on_empty_data_list():
-    client = NovaPostApiClient(_session_returning(200, {"success": True, "data": []}))
-    with pytest.raises(NovaPostApiError):
-        await client.async_get_parcel(ACTIVE_CODE)
-
-
-async def test_get_parcel_raises_on_missing_data_key():
-    client = NovaPostApiClient(_session_returning(200, {"success": True}))
-    with pytest.raises(NovaPostApiError):
-        await client.async_get_parcel(ACTIVE_CODE)
-
-
-async def test_get_parcel_raises_on_non_object_data_item():
-    client = NovaPostApiClient(
-        _session_returning(200, {"success": True, "data": ["not-a-dict"]})
-    )
-    with pytest.raises(NovaPostApiError):
-        await client.async_get_parcel(ACTIVE_CODE)
-
-
 async def test_get_parcel_propagates_network_error():
     """ClientError is left alone — DataUpdateCoordinator already wraps it."""
     session = MagicMock()
-    session.post = MagicMock(side_effect=aiohttp.ClientError("boom"))
+    session.get = MagicMock(side_effect=aiohttp.ClientError("boom"))
     client = NovaPostApiClient(session)
     with pytest.raises(aiohttp.ClientError):
         await client.async_get_parcel(ACTIVE_CODE)
+
+
+async def test_get_parcel_accepts_alphanumeric_codes():
+    """This surface takes any string — cross-border aliases like
+    'SHCN8143247690' are not restricted to the old 14-digit format."""
+    code = "SHCN8143247690"
+    session = _session_returning(200, in_transit_sample(code))
+    client = NovaPostApiClient(session)
+
+    parcel = await client.async_get_parcel(code)
+
+    assert parcel["number"] == code
+    (url,), _ = session.get.call_args
+    assert url == TRACKING_API_URL.format(ttn=code)

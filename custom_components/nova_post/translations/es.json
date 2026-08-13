@@ -1,0 +1,144 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurar Nova Post",
+        "description": "El seguimiento de Nova Post no necesita cuenta ni código postal: el hub se crea de inmediato. Añade paquetes después mediante las opciones de la integración o el servicio `nova_post.track_parcel`."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post ya está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Nova Post",
+        "sections": {
+          "parcels": {
+            "name": "Paquetes",
+            "data": {
+              "add": "Añadir un paquete",
+              "remove": "Eliminar paquetes"
+            },
+            "data_description": {
+              "add": "Introduce un código de seguimiento de Nova Post para empezar a rastrearlo. Lo encontrarás en la confirmación de envío o en el aviso de reparto fallido."
+            }
+          },
+          "delivered": {
+            "name": "Paquetes entregados",
+            "data": {
+              "delivered_filter_type": "Filtrar por",
+              "delivered_filter_amount": "Cantidad"
+            },
+            "data_description": {
+              "delivered_filter_type": "Muestra los paquetes entregados de los últimos X días, o limita a los X más recientes.",
+              "delivered_filter_amount": "Número de días o paquetes a mostrar."
+            }
+          },
+          "history": {
+            "name": "Historial del paquete",
+            "data": {
+              "include_history": "Incluir historial de estados"
+            },
+            "data_description": {
+              "include_history": "Añade un atributo de historial por paquete con cada evento de seguimiento (marca de tiempo, estado, texto original). Desactivado de forma predeterminada."
+            }
+          },
+          "polling": {
+            "name": "Sondeo",
+            "data": {
+              "refresh_interval": "Actualizar cada"
+            },
+            "data_description": {
+              "refresh_interval": "Con qué frecuencia la integración consulta a Nova Post sobre actualizaciones de paquetes. Un intervalo más lento es más suave para la API de Nova Post; el valor predeterminado de 30 minutos es suficiente para la mayoría de los paquetes."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "Eso no parece un código de seguimiento de Nova Post.",
+      "already_tracked": "Ese paquete ya se está rastreando."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minutos",
+        "30": "30 minutos",
+        "60": "60 minutos",
+        "120": "120 minutos",
+        "240": "240 minutos"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Días",
+        "parcels": "Número de paquetes"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Rastrear paquete",
+      "description": "Empieza a rastrear un paquete por su código de seguimiento de Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Código de seguimiento",
+          "description": "El código de seguimiento de Nova Post."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Dejar de rastrear paquete",
+      "description": "Deja de rastrear un paquete por su código de seguimiento de Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Código de seguimiento",
+          "description": "El código de seguimiento de Nova Post que se dejará de rastrear."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Se registró un paquete",
+      "parcel_status_changed": "El estado de un paquete cambió",
+      "parcel_delivered": "Se entregó un paquete",
+      "parcel_delivery_time_changed": "La hora de entrega prevista de un paquete cambió"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Actualizar"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Entregas"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Paquetes entrantes",
+        "unit_of_measurement": "paquetes"
+      },
+      "next_delivery": {
+        "name": "Próxima entrega"
+      },
+      "delivered_parcels": {
+        "name": "Paquetes entregados",
+        "unit_of_measurement": "paquetes"
+      },
+      "last_update": {
+        "name": "Última actualización correcta"
+      },
+      "parcel": {
+        "name": "Paquete {barcode}"
+      }
+    }
+  }
+}

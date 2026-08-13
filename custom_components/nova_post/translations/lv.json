@@ -1,0 +1,144 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Iestatīt Nova Post",
+        "description": "Nova Post izsekošanai nav nepieciešams konts vai pasta indekss — centrmezgls tiek izveidots uzreiz. Sūtījumus pievienosi vēlāk, izmantojot integrācijas opcijas vai pakalpojumu `nova_post.track_parcel`."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post jau ir iestatīts."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nova Post opcijas",
+        "sections": {
+          "parcels": {
+            "name": "Sūtījumi",
+            "data": {
+              "add": "Pievienot sūtījumu",
+              "remove": "Noņemt sūtījumus"
+            },
+            "data_description": {
+              "add": "Ievadi Nova Post izsekošanas kodu, lai sāktu sūtījuma izsekošanu. To atradīsi nosūtīšanas apstiprinājumā vai piegādes paziņojumā."
+            }
+          },
+          "delivered": {
+            "name": "Piegādātie sūtījumi",
+            "data": {
+              "delivered_filter_type": "Filtrēt pēc",
+              "delivered_filter_amount": "Daudzums"
+            },
+            "data_description": {
+              "delivered_filter_type": "Rādīt pēdējo X dienu laikā piegādātos sūtījumus vai ierobežot līdz X jaunākajiem.",
+              "delivered_filter_amount": "Rādāmo dienu vai sūtījumu skaits."
+            }
+          },
+          "history": {
+            "name": "Sūtījuma vēsture",
+            "data": {
+              "include_history": "Iekļaut statusu vēsturi"
+            },
+            "data_description": {
+              "include_history": "Pievieno katram sūtījumam vēstures atribūtu, kurā uzskaitīts katrs izsekošanas notikums (laika zīmogs, statuss, oriģinālais teksts). Pēc noklusējuma izslēgts."
+            }
+          },
+          "polling": {
+            "name": "Aptauja",
+            "data": {
+              "refresh_interval": "Atjaunināt ik pēc"
+            },
+            "data_description": {
+              "refresh_interval": "Cik bieži integrācija pārbauda Nova Post sūtījumu atjauninājumus. Lēnāks intervāls ir saudzīgāks pret Nova Post API; noklusējuma 30 minūtes ir pietiekamas lielākajai daļai sūtījumu."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "Tas neizskatās pēc Nova Post izsekošanas koda.",
+      "already_tracked": "Šis sūtījums jau tiek izsekots."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minūtes",
+        "30": "30 minūtes",
+        "60": "60 minūtes",
+        "120": "120 minūtes",
+        "240": "240 minūtes"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Dienas",
+        "parcels": "Sūtījumu skaits"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Izsekot sūtījumu",
+      "description": "Sāk sūtījuma izsekošanu pēc tā Nova Post izsekošanas koda.",
+      "fields": {
+        "tracking_code": {
+          "name": "Izsekošanas kods",
+          "description": "Nova Post izsekošanas kods."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Pārtraukt sūtījuma izsekošanu",
+      "description": "Pārtrauc sūtījuma izsekošanu pēc tā Nova Post izsekošanas koda.",
+      "fields": {
+        "tracking_code": {
+          "name": "Izsekošanas kods",
+          "description": "Nova Post izsekošanas kods, kuram jāpārtrauc izsekošana."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Sūtījums tika reģistrēts",
+      "parcel_status_changed": "Sūtījuma statuss mainījās",
+      "parcel_delivered": "Sūtījums tika piegādāts",
+      "parcel_delivery_time_changed": "Sūtījuma paredzamais piegādes laiks mainījās"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Atjaunināt"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Piegādes"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Ienākošie sūtījumi",
+        "unit_of_measurement": "sūtījumi"
+      },
+      "next_delivery": {
+        "name": "Nākamā piegāde"
+      },
+      "delivered_parcels": {
+        "name": "Piegādātie sūtījumi",
+        "unit_of_measurement": "sūtījumi"
+      },
+      "last_update": {
+        "name": "Pēdējā veiksmīgā atjaunināšana"
+      },
+      "parcel": {
+        "name": "Sūtījums {barcode}"
+      }
+    }
+  }
+}

@@ -12,35 +12,37 @@ from . import NovaPostConfigEntry
 # identifies a person, an address or a specific parcel. Over-redacting is
 # cheap; under-redacting leaks a user's home address into a GitHub thread.
 #
-# Per carrier-research/api/nova-post/tracking.md ("Payload → canonical
-# mapping" / diagnostics redaction):
-# * ``Number`` is the barcode (it echoes the request) — redacted both under
-#   its own payload key and under the canonical ``barcode``.
-# * ``CitySender``/``CityRecipient``-class fields and ``WarehouseSender``/
-#   ``WarehouseRecipient`` (the pickup-point branch/locker) are redacted even
-#   though a branch identity is arguably not personal data — every other
-#   suite carrier redacts pickup-point identity the same way (SunYou's
-#   ``office``, An Post's ``deliveryPin``/``parcelLockerPin``), and a specific
-#   Nova Poshta branch a named parcel sits in narrows down a person's
-#   location just as much as an address would.
-# * ``PhoneSender`` is the only phone field actually enumerated on the live
-#   probe, but the Sender/Recipient field-family pairing makes a
-#   recipient-side phone plausible too — redact defensively on any ``Phone*``
-#   key via the key-matching pass below, not just the one confirmed name.
-# * ``DocumentCost``/``AnnouncedPrice`` are the declared shipment value —
-#   financial, redacted like every other carrier's declared-value field.
-# * **Added 2026-08-10**, from the 128-key enumeration
-#   (tracking.md#correction-2026-08-10--the-item-carries-128-keys-not-thirteen):
-#   ``RecipientFullName``/``RecipientFullNameEW``/``SenderFullNameEW`` (party
-#   names — ``sender``/``receiver`` now read these, see parcels.py),
-#   ``WarehouseRecipientAddress``/``WarehouseRecipientNumber``/
-#   ``ParentBranchName`` (fuller pickup-point identity alongside
-#   ``WarehouseRecipient``), ``UndeliveryReasons``/``UndeliveryReasonsDate``/
-#   ``UndeliveryReasonsSubtypeDescription`` (free-text about why a delivery
-#   failed — can easily carry an address or a name) and ``PaymentStatus``
-#   (financial, like ``DocumentCost``/``AnnouncedPrice`` above). These sit
-#   alongside the existing exact-name list and the City*/Warehouse*/Phone*
-#   prefix pass below, not in place of either.
+# **2026-08-13: rewritten for the ``/site/v.1.0/`` REST payload** (see
+# parcels.py and carrier-research/api/nova-post/novapost-tracking.md "Real
+# captured response") — the old JSON-RPC field names (``Number``,
+# ``WarehouseRecipient``, ``CitySender``, …) no longer appear on the wire.
+#
+# The real capture on file carries no person name, phone or street address at
+# all (confirmed: "Every string field above is either a code, a country/
+# settlement/branch name or a shipment identifier"), which is a lower bar than
+# the old surface — but *location* is still identifying, and this surface adds
+# something the old one never had: **GPS coordinates**, per tracking hop
+# (``division_coordinates``) and per party (``latitude``/``longitude`` inside
+# ``sender``/``recipient``). That is narrower than any address the old surface
+# ever redacted, so ``sender``/``recipient`` are redacted as **whole blocks**
+# (mirrors ha-dynalogic's ``Addressee``/``ContactInformation`` convention —
+# the leaves we do not know the names of are exactly the ones a per-leaf list
+# would miss), and every location-shaped leaf inside ``tracking[]`` is
+# redacted individually: ``settlement_name``, ``division_name``,
+# ``settlement_external_id``, ``post_code`` and ``division_coordinates``.
+#
+# ``number``/``parcel_number`` echo the tracking code (barcode) at every
+# level — top-level, each ``tracking[]`` hop, each ``parcels[]`` entry and
+# each ``alternativeNumbersGW``/``alternativeNumbersGWNew`` entry — redacted
+# everywhere the key appears, same as the canonical ``barcode``.
+# ``alternative_numbers`` is the same identifier in other formats, redacted
+# whole. ``parcel_description`` is free text about the shipment's contents;
+# ``insurance_cost``/``insurance_cost_currency_code`` are the declared value —
+# financial, like every other carrier's declared-value field.
+#
+# ``country_code`` is deliberately **not** redacted: alone, on a tracking hop
+# ("customs terminal in this country"), it is not specific enough to locate a
+# person and is genuinely useful for debugging the status mapping.
 TO_REDACT = {
     # canonical fields we publish ourselves
     "tracking_code",
@@ -49,63 +51,25 @@ TO_REDACT = {
     "receiver",
     "pickup_point",
     "url",
-    # Nova Poshta payload fields (see tracking.md#payload)
-    "Number",
-    "CitySender",
-    "CityRecipient",
-    "CitySenderDescription",
-    "CityRecipientDescription",
-    "WarehouseSender",
-    "WarehouseRecipient",
-    "PhoneSender",
-    "PhoneRecipient",
-    "DocumentCost",
-    "AnnouncedPrice",
-    # Added 2026-08-10 — see the comment block above
-    "RecipientFullName",
-    "RecipientFullNameEW",
-    "SenderFullNameEW",
-    "WarehouseRecipientAddress",
-    "WarehouseRecipientNumber",
-    "ParentBranchName",
-    "UndeliveryReasons",
-    "UndeliveryReasonsDate",
-    "UndeliveryReasonsSubtypeDescription",
-    "PaymentStatus",
+    # Nova Post /site/v.1.0/ payload fields (see parcels.py)
+    "number",
+    "parcel_number",
+    "recipient",
+    "alternative_numbers",
+    "settlement_name",
+    "settlement_external_id",
+    "division_name",
+    "division_coordinates",
+    "post_code",
+    "parcel_description",
+    "insurance_cost",
+    "insurance_cost_currency_code",
 }
-
-# Nova Poshta's exact field-family names beyond the ones enumerated above are
-# unconfirmed (the one live probe returned every field empty — see
-# tracking.md). Redact defensively on any key matching one of these families
-# rather than trusting the fixed set above to be complete.
-_REDACT_KEY_PATTERNS = ("City", "Warehouse", "Phone")
-
-
-def _redact_unconfirmed_field_families(data: Any) -> Any:
-    """Recursively blank any dict key matching an unconfirmed field family.
-
-    Runs in addition to :func:`async_redact_data` (which only matches exact
-    keys in ``TO_REDACT``), so a City*/Warehouse*/Phone* sibling that has not
-    been enumerated by name is still caught.
-    """
-    if isinstance(data, dict):
-        return {
-            key: (
-                "**REDACTED**"
-                if isinstance(key, str)
-                and any(key.startswith(prefix) for prefix in _REDACT_KEY_PATTERNS)
-                else _redact_unconfirmed_field_families(value)
-            )
-            for key, value in data.items()
-        }
-    if isinstance(data, list):
-        return [_redact_unconfirmed_field_families(item) for item in data]
-    return data
 
 
 def _redact(data: Any) -> Any:
-    """Apply both the exact-key and the field-family redaction passes."""
-    return async_redact_data(_redact_unconfirmed_field_families(data), TO_REDACT)
+    """Apply the exact-key redaction pass."""
+    return async_redact_data(data, TO_REDACT)
 
 
 async def async_get_config_entry_diagnostics(

@@ -1,0 +1,144 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurare Nova Post",
+        "description": "Urmărirea Nova Post nu necesită cont sau cod poștal — hub-ul este creat imediat. Adaugă colete ulterior prin opțiunile integrării sau serviciul `nova_post.track_parcel`."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post este deja configurat."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opțiuni Nova Post",
+        "sections": {
+          "parcels": {
+            "name": "Colete",
+            "data": {
+              "add": "Adaugă un colet",
+              "remove": "Elimină colete"
+            },
+            "data_description": {
+              "add": "Introdu un cod de urmărire Nova Post pentru a începe urmărirea coletului. Îl găsești pe confirmarea de expediere sau pe avizul de livrare nereușită."
+            }
+          },
+          "delivered": {
+            "name": "Colete livrate",
+            "data": {
+              "delivered_filter_type": "Filtrează după",
+              "delivered_filter_amount": "Cantitate"
+            },
+            "data_description": {
+              "delivered_filter_type": "Afișează coletele livrate din ultimele X zile sau limitează la cele mai recente X.",
+              "delivered_filter_amount": "Numărul de zile sau colete de afișat."
+            }
+          },
+          "history": {
+            "name": "Istoricul coletului",
+            "data": {
+              "include_history": "Include istoricul stărilor"
+            },
+            "data_description": {
+              "include_history": "Adaugă un atribut de istoric pentru fiecare colet, listând fiecare eveniment de urmărire (marcă temporală, stare, text original). Dezactivat implicit."
+            }
+          },
+          "polling": {
+            "name": "Interogare",
+            "data": {
+              "refresh_interval": "Actualizează la fiecare"
+            },
+            "data_description": {
+              "refresh_interval": "Cât de des verifică integrarea Nova Post pentru actualizări de colete. Un interval mai lent este mai blând cu API-ul Nova Post; valoarea implicită de 30 de minute este suficientă pentru majoritatea coletelor."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "Acesta nu pare a fi un cod de urmărire Nova Post.",
+      "already_tracked": "Acest colet este deja urmărit."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minute",
+        "30": "30 de minute",
+        "60": "60 de minute",
+        "120": "120 de minute",
+        "240": "240 de minute"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Zile",
+        "parcels": "Număr de colete"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Urmărește coletul",
+      "description": "Începe urmărirea unui colet după codul său de urmărire Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Cod de urmărire",
+          "description": "Codul de urmărire Nova Post."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Oprește urmărirea coletului",
+      "description": "Oprește urmărirea unui colet după codul său de urmărire Nova Post.",
+      "fields": {
+        "tracking_code": {
+          "name": "Cod de urmărire",
+          "description": "Codul de urmărire Nova Post a cărui urmărire va fi oprită."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "A fost înregistrat un colet",
+      "parcel_status_changed": "Starea unui colet s-a schimbat",
+      "parcel_delivered": "Un colet a fost livrat",
+      "parcel_delivery_time_changed": "Ora estimată de livrare a unui colet s-a schimbat"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Actualizează"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Livrări"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Colete în tranzit",
+        "unit_of_measurement": "colete"
+      },
+      "next_delivery": {
+        "name": "Următoarea livrare"
+      },
+      "delivered_parcels": {
+        "name": "Colete livrate",
+        "unit_of_measurement": "colete"
+      },
+      "last_update": {
+        "name": "Ultima actualizare reușită"
+      },
+      "parcel": {
+        "name": "Colet {barcode}"
+      }
+    }
+  }
+}

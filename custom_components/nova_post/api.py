@@ -1,18 +1,24 @@
-"""Nova Poshta public tracking API client.
+"""Nova Post public tracking API client.
 
-Targets ``novaposhta.ua``'s official JSON-RPC surface, method
-``TrackingDocument.getStatusDocuments`` — see
-carrier-research/api/nova-post/tracking.md for the full write-up. Contract the
-coordinator relies on:
+Targets ``novaposhta.ua``'s website tracking surface, ``/site/v.1.0/
+shipments/tracking/{ttn}`` — see carrier-research/api/nova-post/
+novapost-tracking.md for the full write-up. Contract the coordinator relies
+on:
 
-* ``async_get_parcel`` returns the raw ``data[0]`` dict on success,
-* returns ``None`` when the carrier reports the tracking code as unknown
-  (``StatusCode == "3"``) — a normal, expected state, never an error,
-* raises :class:`NovaPostApiError` for anything else (including a
-  ``success: false`` envelope, which never comes from the not-found case —
-  the not-found case is still ``success: true``),
+* ``async_get_parcel`` returns the raw response body (a bare object, not a
+  ``{data: [...]}`` envelope) on success,
+* returns ``None`` when the carrier reports the number as unknown (HTTP 404
+  with ``errorMessage: "not_found"``) — a normal, expected state, never an
+  error,
+* raises :class:`NovaPostApiError` for anything else,
 * lets ``aiohttp.ClientError`` propagate untouched — ``DataUpdateCoordinator``
   already wraps those into ``UpdateFailed``.
+
+**2026-08-13: this replaces the ``novaposhta.ua`` JSON-RPC ``getStatusDocuments``
+client** (carrier-research/nova-post.md "## Build", addendum 2026-08-13) —
+moved for the richer confirmed payload (history/weight/dimensions/pickup_point/
+url), at the cost of losing named ``sender``/``receiver`` (this surface only
+carries geography). See parcels.py and CLAUDE.md for the full trade-off.
 """
 from __future__ import annotations
 
@@ -25,36 +31,29 @@ from .const import TRACKING_API_URL
 
 _LOGGER = logging.getLogger(__name__)
 
-# Nova Poshta's own signal for "no such tracking number" (Ukrainian:
-# "Номер не знайдено"). Confirmed live against a bogus TTN — see
-# carrier-research/api/nova-post/tracking.md#envelope-and-the-not-found-signal.
-# This is not a parcel state and must never reach the status map.
-_STATUS_NOT_FOUND = "3"
-
 
 class NovaPostApiError(Exception):
-    """Raised when a Nova Poshta API call returns an unexpected response."""
+    """Raised when a Nova Post API call returns an unexpected response."""
 
     def __init__(self, detail: str) -> None:
         """Store the detail that triggered the error."""
-        super().__init__(f"Nova Poshta API request failed: {detail}")
+        super().__init__(f"Nova Post API request failed: {detail}")
         self.detail = detail
 
 
 class NovaPostApiClient:
-    """Client for Nova Poshta's public ``getStatusDocuments`` method.
+    """Client for Nova Post's public website tracking route.
 
-    No authentication in the ordinary sense: **``apiKey`` is always the
-    literal empty string.** This is Nova Poshta's official, key-gated JSON-RPC
-    API — every other method needs a registered key — but this one method
-    (and the unrelated ``Common.getCargoTypes`` reference-data call) are
-    deliberately anonymous. Do not add a credential step; see
-    carrier-research/api/nova-post/tracking.md#endpoint--request.
-
-    The envelope is always HTTP 200 with ``success: true`` — even for a
-    tracking number that does not exist. The only reliable signal is
-    ``data[0]["StatusCode"]``, so this client never branches on ``success`` or
-    the HTTP status for the not-found case.
+    No authentication of any kind — no headers, no key, nothing to register.
+    Live-confirmed 2026-08-13 against a real in-flight parcel (TTN ``12348``):
+    control-tested against a protected sibling on the same host (every route
+    under ``/mobileapp/v.1.1/`` answers ``401`` with no credential), and
+    against a route-existence oracle that separates "no such route" from "no
+    such shipment" (see novapost-tracking.md). ``api.novapost.com`` and
+    ``api.novaposhta.ua`` are live-confirmed to serve byte-identical bodies for
+    the same TTN — one shared backend, two brand hostnames — and this client
+    targets the ``novaposhta.ua`` host to match the integration's existing
+    branding.
     """
 
     def __init__(self, session: aiohttp.ClientSession) -> None:
@@ -64,23 +63,20 @@ class NovaPostApiClient:
     async def async_get_parcel(self, tracking_code: str) -> dict[str, Any] | None:
         """Fetch one parcel's tracking details.
 
-        Returns the ``data[0]`` dict for a known tracking number, or ``None``
-        when Nova Poshta reports it as not found (``StatusCode == "3"``). Any
-        other failure envelope or non-2xx status raises
-        :class:`NovaPostApiError`; network errors propagate as
-        ``aiohttp.ClientError``.
+        Returns the response body for a known tracking number, or ``None``
+        when Nova Post reports it as not found (HTTP 404,
+        ``errorMessage: "not_found"``). Any other non-2xx status or
+        unparseable/malshaped body raises :class:`NovaPostApiError`; network
+        errors propagate as ``aiohttp.ClientError``.
 
-        ``Documents`` is sent as a one-item list — batching multiple
-        ``DocumentNumber`` entries per call is unconfirmed (no source ever
-        exercised it), so one document per request until proven otherwise.
+        Unlike the old JSON-RPC surface there is no batching — the tracking
+        code is a single path segment, one request per parcel, same as
+        before.
         """
-        body = {
-            "apiKey": "",
-            "modelName": "TrackingDocument",
-            "calledMethod": "getStatusDocuments",
-            "methodProperties": {"Documents": [{"DocumentNumber": tracking_code}]},
-        }
-        async with self._session.post(TRACKING_API_URL, json=body) as response:
+        url = TRACKING_API_URL.format(ttn=tracking_code)
+        async with self._session.get(url) as response:
+            if response.status == 404:
+                return None
             if response.status != 200:
                 raise NovaPostApiError(f"HTTP {response.status}")
             try:
@@ -93,21 +89,4 @@ class NovaPostApiClient:
         if not isinstance(payload, dict):
             raise NovaPostApiError("unexpected body (not a JSON object)")
 
-        if payload.get("success") is not True:
-            raise NovaPostApiError(str(payload.get("errors") or "success: false"))
-
-        data = payload.get("data")
-        if not isinstance(data, list) or not data:
-            # A bare success with an empty data list is not the documented
-            # not-found shape (that is StatusCode "3" on a populated item) —
-            # treat it as an unexpected envelope rather than guessing "not
-            # found".
-            raise NovaPostApiError("success envelope carried no data item")
-
-        item = data[0]
-        if not isinstance(item, dict):
-            raise NovaPostApiError("unexpected data[0] (not a JSON object)")
-
-        if item.get("StatusCode") == _STATUS_NOT_FOUND:
-            return None
-        return item
+        return payload

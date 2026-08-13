@@ -1,0 +1,144 @@
+{
+  "title": "Nova Post",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Seadista Nova Post",
+        "description": "Nova Post jälgimine ei vaja kontot ega sihtnumbrit — jaotur luuakse kohe. Lisa pakid hiljem integratsiooni valikute või teenuse `nova_post.track_parcel` kaudu."
+      }
+    },
+    "abort": {
+      "already_configured": "Nova Post on juba seadistatud."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nova Posti valikud",
+        "sections": {
+          "parcels": {
+            "name": "Pakid",
+            "data": {
+              "add": "Lisa pakk",
+              "remove": "Eemalda pakke"
+            },
+            "data_description": {
+              "add": "Sisesta Nova Posti jälgimiskood, et alustada paki jälgimist. Selle leiad saatmise kinnituselt või kättetoimetamise teatiselt."
+            }
+          },
+          "delivered": {
+            "name": "Kohale toimetatud pakid",
+            "data": {
+              "delivered_filter_type": "Filtreeri",
+              "delivered_filter_amount": "Kogus"
+            },
+            "data_description": {
+              "delivered_filter_type": "Kuva viimase X päeva jooksul kohale toimetatud pakid või piirdu X uusimaga.",
+              "delivered_filter_amount": "Kuvatavate päevade või pakkide arv."
+            }
+          },
+          "history": {
+            "name": "Paki ajalugu",
+            "data": {
+              "include_history": "Kaasa oleku ajalugu"
+            },
+            "data_description": {
+              "include_history": "Lisab iga paki juurde ajaloo atribuudi, mis loetleb kõik jälgimissündmused (ajatempel, olek, algne tekst). Vaikimisi väljas."
+            }
+          },
+          "polling": {
+            "name": "Päringud",
+            "data": {
+              "refresh_interval": "Värskenda iga"
+            },
+            "data_description": {
+              "refresh_interval": "Kui sageli integratsioon kontrollib Nova Postilt pakiuuendusi. Aeglasem intervall on Nova Posti API suhtes leebem; vaikeväärtus 30 minutit sobib enamikule pakkidele."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "invalid_tracking_code": "See ei näi olevat Nova Posti jälgimiskood.",
+      "already_tracked": "Seda pakki juba jälgitakse."
+    }
+  },
+  "selector": {
+    "refresh_interval": {
+      "options": {
+        "15": "15 minutit",
+        "30": "30 minutit",
+        "60": "60 minutit",
+        "120": "120 minutit",
+        "240": "240 minutit"
+      }
+    },
+    "delivered_filter_type": {
+      "options": {
+        "days": "Päeva",
+        "parcels": "Pakkide arv"
+      }
+    }
+  },
+  "services": {
+    "track_parcel": {
+      "name": "Jälgi pakki",
+      "description": "Alustab paki jälgimist selle Nova Posti jälgimiskoodi järgi.",
+      "fields": {
+        "tracking_code": {
+          "name": "Jälgimiskood",
+          "description": "Nova Posti jälgimiskood."
+        }
+      }
+    },
+    "untrack_parcel": {
+      "name": "Lõpeta paki jälgimine",
+      "description": "Lõpetab paki jälgimise selle Nova Posti jälgimiskoodi järgi.",
+      "fields": {
+        "tracking_code": {
+          "name": "Jälgimiskood",
+          "description": "Nova Posti jälgimiskood, mille jälgimine tuleb lõpetada."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "parcel_registered": "Pakk registreeriti",
+      "parcel_status_changed": "Paki olek muutus",
+      "parcel_delivered": "Pakk toimetati kohale",
+      "parcel_delivery_time_changed": "Paki eeldatav kättetoimetamise aeg muutus"
+    }
+  },
+  "entity": {
+    "button": {
+      "refresh": {
+        "name": "Värskenda"
+      }
+    },
+    "calendar": {
+      "deliveries": {
+        "name": "Kättetoimetamised"
+      }
+    },
+    "sensor": {
+      "incoming_parcels": {
+        "name": "Saabuvad pakid",
+        "unit_of_measurement": "pakki"
+      },
+      "next_delivery": {
+        "name": "Järgmine kättetoimetamine"
+      },
+      "delivered_parcels": {
+        "name": "Kohale toimetatud pakid",
+        "unit_of_measurement": "pakki"
+      },
+      "last_update": {
+        "name": "Viimane õnnestunud värskendus"
+      },
+      "parcel": {
+        "name": "Pakk {barcode}"
+      }
+    }
+  }
+}

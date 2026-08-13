@@ -19,11 +19,13 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_DELIVERED_FILTER_AMOUNT,
     CONF_DELIVERED_FILTER_TYPE,
+    CONF_INCLUDE_HISTORY,
     CONF_PARCELS,
     CONF_REFRESH_INTERVAL,
     CONF_TRACKING_CODE,
     DEFAULT_DELIVERED_FILTER_AMOUNT,
     DEFAULT_DELIVERED_FILTER_TYPE,
+    DEFAULT_INCLUDE_HISTORY,
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     REFRESH_INTERVAL_OPTIONS,
@@ -31,28 +33,31 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# A Nova Poshta TTN (waybill number, ``DocumentNumber`` in the request) is a
-# **14-digit numeric** code — every TTN referenced anywhere in the research,
-# including the bogus probe number used to confirm the not-found signal
-# (``20450000000000``), is exactly 14 digits. This is tighter than the
-# template's default alphanumeric range on purpose: unlike some sibling
-# carriers, the format here is well-established across every source consulted,
-# so there is no reason to stay loose. See
-# carrier-research/nova-post.md#surface-official-tracking-method-novaposhtaua-no-key-required.
-_TRACKING_CODE_RE = re.compile(r"^\d{14}$")
+# **2026-08-13: widened for the ``/site/v.1.0/`` REST surface**
+# (carrier-research/nova-post.md `## Build`, addendum 2026-08-13), which this
+# integration now calls instead of the JSON-RPC ``getStatusDocuments`` method.
+# That surface "takes any string" (novapost-tracking.md "Surface B") — it has
+# no documented format at all, unlike the old surface's strict 14-digit
+# ``DocumentNumber``. Two shapes are confirmed live: short numeric reference
+# codes (`12345`, `12348`, `12349`, 5 digits) and cross-border alphanumeric
+# TTNs (`SHCN8143247690`, 14 chars) alongside the original 14-digit Ukrainian
+# domestic TTN. 4-30 alphanumeric characters covers all three with a
+# deliberate buffer rather than a proven bound on either end — narrow it once
+# a real code shows the actual limits.
+_TRACKING_CODE_RE = re.compile(r"^[A-Za-z0-9]{4,30}$")
 
 
 def normalize_tracking_code(value: str) -> str:
-    """Return the tracking code with everything but digits stripped.
+    """Return the tracking code upper-cased with separators stripped.
 
-    So a TTN pasted with spaces or dashes (as it is often printed on a
-    shipping label) still validates.
+    So a code pasted with spaces or dashes (as it is often printed on a
+    shipping label) still validates, and matches regardless of case.
     """
-    return re.sub(r"[^0-9]+", "", value or "")
+    return re.sub(r"[^A-Za-z0-9]+", "", (value or "")).upper()
 
 
 def valid_tracking_code(value: str) -> bool:
-    """Whether ``value`` looks like a Nova Poshta TTN: exactly 14 digits."""
+    """Whether ``value`` looks like a Nova Post tracking code: 4-30 alphanumeric characters."""
     return bool(_TRACKING_CODE_RE.match(value))
 
 
@@ -95,11 +100,6 @@ class NovaPostConfigFlow(ConfigFlow, domain=DOMAIN):
         straight away and parcels are added afterwards via the options flow,
         the ``nova_post.track_parcel`` service or a dashboard button.
         ``single_config_entry`` in the manifest enforces one hub.
-
-        Nova Poshta's request shape has an optional ``Phone`` field on each
-        ``Documents`` entry, but no source consulted requires it for
-        ``getStatusDocuments`` — omitted here unless a real probe shows it
-        changes the response (carrier-research/api/nova-post/tracking.md).
         """
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
@@ -111,16 +111,19 @@ class NovaPostConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_DELIVERED_FILTER_TYPE: DEFAULT_DELIVERED_FILTER_TYPE,
                 CONF_DELIVERED_FILTER_AMOUNT: DEFAULT_DELIVERED_FILTER_AMOUNT,
                 CONF_REFRESH_INTERVAL: DEFAULT_REFRESH_INTERVAL,
+                CONF_INCLUDE_HISTORY: DEFAULT_INCLUDE_HISTORY,
             },
         )
 
 
 class NovaPostOptionsFlowHandler(OptionsFlow):
-    """Manage tracked parcels and polling in one sectioned form.
+    """Manage tracked parcels, history and polling in one sectioned form.
 
-    Mirrors the other suite carriers' section layout (here: ``parcels`` /
-    ``delivered`` / ``polling`` — no ``history`` section: Nova Post exposes no
-    events/timeline array, see const.py). Changes apply live via HA's
+    Mirrors the other suite carriers' section layout (``parcels`` /
+    ``delivered`` / ``history`` / ``polling``). The ``/site/v.1.0/`` surface
+    this integration calls since 2026-08-13 exposes a real ``tracking[]``
+    timeline (see parcels.py), so ``history`` is now a real opt-in, off by
+    default like every other suite carrier's. Changes apply live via HA's
     options-update listener (which refreshes the coordinator), so new/removed
     per-parcel sensors appear and disappear immediately.
     """
@@ -135,6 +138,7 @@ class NovaPostOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             parcels_section = user_input.get("parcels", {})
             delivered_section = user_input.get("delivered", {})
+            history_section = user_input.get("history", {})
             polling_section = user_input.get("polling", {})
 
             # Remove first, then add — so re-adding a just-removed code works.
@@ -160,6 +164,9 @@ class NovaPostOptionsFlowHandler(OptionsFlow):
                         ],
                         CONF_DELIVERED_FILTER_AMOUNT: int(
                             delivered_section[CONF_DELIVERED_FILTER_AMOUNT]
+                        ),
+                        CONF_INCLUDE_HISTORY: bool(
+                            history_section[CONF_INCLUDE_HISTORY]
                         ),
                         CONF_REFRESH_INTERVAL: int(
                             polling_section[CONF_REFRESH_INTERVAL]
@@ -217,6 +224,19 @@ class NovaPostOptionsFlowHandler(OptionsFlow):
                                     min=1, max=365, step=1, mode=selector.NumberSelectorMode.BOX
                                 )
                             ),
+                        }
+                    ),
+                    {"collapsed": True},
+                ),
+                vol.Required("history"): section(
+                    vol.Schema(
+                        {
+                            vol.Required(
+                                CONF_INCLUDE_HISTORY,
+                                default=current.get(
+                                    CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY
+                                ),
+                            ): selector.BooleanSelector(),
                         }
                     ),
                     {"collapsed": True},

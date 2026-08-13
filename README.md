@@ -6,38 +6,11 @@
 
 > 💬 Questions or feedback? Join the discussion on the [Home Assistant community](https://community.home-assistant.io/t/packages-postnl-dhl-nl-dpd-and-gls-parcel-integration/112433/).
 
-A custom Home Assistant integration that tracks your [Nova Post](https://novaposhta.ua) (Nova Poshta) parcels within Ukraine. No account and no API key are needed — you enter the 14-digit tracking number (TTN) yourself, just like on the Nova Poshta website.
+A custom Home Assistant integration that tracks your [Nova Post](https://novaposhta.ua) (Nova Poshta) parcels — Ukraine's largest parcel-locker and courier network, with cross-border delivery across Europe and the US. No account and no API key are needed — you enter the tracking number yourself, just like on the Nova Poshta website.
 
 Part of the [ha-parcel-integrations](https://github.com/ha-parcel-integrations) family: it publishes the same canonical parcel format, statuses and events as the other carrier integrations, so it plugs straight into the [Parcel Aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) and cross-carrier automations.
 
-> ### ⚠️ Early release — no real Nova Poshta parcel has been tracked yet
->
-> The endpoint, the keyless `apiKey: ""` path and the not-found signal are all
-> live-confirmed against a real probe — but that probe used a bogus tracking
-> number, so every field in the response came back empty. What has **not**
-> been seen from a real parcel is a *populated* response, so several things
-> are still open:
->
-> - the 12-code status vocabulary is seeded from a third-party repo, not a
->   capture — only "not found" (code 3) has ever actually been observed on the
->   wire;
-> - `sender`/`receiver` are now populated from named fields the carrier
->   confirmed exist (`SenderFullNameEW`/`RecipientFullName`), but no *value*
->   behind those names has ever been seen on the wire;
-> - whether `DocumentWeight` is in kilograms (assumed) is unconfirmed;
-> - `delivered_at` and `planned_from`/`planned_to` are left `None` rather than
->   guessed — ETA and delivered-at candidate fields exist
->   (`ScheduledDeliveryDate`/`AdjustedDate`, `ActualDeliveryDate`/
->   `RecipientDateTime`) but which one actually populates, and in what shape,
->   has never been confirmed against a real parcel;
-> - a tracking-page `url` is left `None` — no public consumer tracking-page
->   URL has ever been captured for Nova Poshta.
->
-> Each of those logs a one-shot warning with a ready-made issue link the first
-> time a real parcel hits it, and an unmapped status reports **`unknown`**
-> rather than a wrong one. If you see one,
-> [please report it](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml)
-> — that is what finishes this integration.
+An unrecognised status still reports `unknown` rather than a wrong one, logging a one-shot warning with a ready-made issue link — if you see one, [please report it](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml).
 
 ## Contents
 
@@ -61,19 +34,21 @@ Part of the [ha-parcel-integrations](https://github.com/ha-parcel-integrations) 
 
 ## Features
 
-- Track any number of Nova Post parcels by their 14-digit tracking number (TTN) — no account needed
+- Track any number of Nova Post parcels by their tracking number — no account needed, and it takes the Ukrainian domestic TTN, a short reference code and a cross-border alias alike
 - Per-parcel sensor with the canonical status (`registered` / `in_transit` / `at_pickup_point` / `delivered` / …) and the carrier's own status text
+- Weight, dimensions, a delivery-window estimate, the pickup-point/branch name and a direct link to the parcel's tracking page, when the carrier provides them
+- Optional per-parcel status history (opt-in, off by default)
 - Summary sensors: incoming parcels, recently delivered parcels
 - `nova_post.track_parcel` / `nova_post.untrack_parcel` services, so a dashboard button can add a parcel
-- Events + device triggers for no-code automations (parcel registered, status changed, delivered)
+- Events + device triggers for no-code automations (parcel registered, status changed, delivered, delivery time changed)
 - Manual refresh button and a diagnostic last-update sensor
 
 ## Requirements
 
 - Home Assistant 2024.7 or newer
-- A Nova Post (Nova Poshta) parcel within Ukraine and its 14-digit tracking
-  number (TTN), from the shipping confirmation or the missed-delivery card —
-  no account needed
+- A Nova Post (Nova Poshta) parcel and its tracking number, from the shipping
+  confirmation, the tracking page or the missed-delivery card — no account
+  needed
 
 ## Installation
 
@@ -99,14 +74,10 @@ Open **Configure** on the integration entry:
 
 | Section | Option | Default | Description |
 |---|---|---|---|
-| Parcels | Add / remove | — | Manage the tracked TTNs. Changes apply immediately, no restart. |
+| Parcels | Add / remove | — | Manage the tracked codes. Changes apply immediately, no restart. |
 | Delivered parcels | Filter by / amount | last 7 days | How long delivered parcels stay visible on the delivered sensor. |
+| Parcel history | Include status history | off | Adds a per-parcel `history` attribute listing each tracking event. Off by default — it's a large attribute. |
 | Polling | Refresh every | 30 min | How often Nova Post is checked. Slower is gentler on their API. |
-
-There is no *parcel history* option here, unlike some other integrations in
-the family: Nova Post's tracking method returns a single current-state
-snapshot, not an event timeline, so every parcel's `history` attribute is
-always `null`.
 
 ## Removal
 
@@ -126,27 +97,22 @@ A delivered parcel moves from its per-parcel sensor to the delivered sensor auto
 
 ## Parcel status reference
 
-The `status` field is the carrier-agnostic enum shared by the whole integration family. Nova Post's own `StatusCode` vocabulary has no "out for delivery today" state, so that value is never produced by this integration:
+The `status` field is the carrier-agnostic enum shared by the whole integration family, mapped from Nova Post's own published tracking-code table:
 
 | Status | Meaning |
 |---|---|
 | `registered` | New waybill created, not yet handed over |
-| `in_transit` | Dispatched, on the way, or in the destination city |
+| `in_transit` | Dispatched, on the way, in the destination city, or moving through customs |
+| `out_for_delivery` | Uploaded to the courier for delivery to the address |
 | `at_pickup_point` | Arrived at a branch or parcel locker, ready to collect |
 | `delivered` | Received (picked up) |
 | `returning` | Refused, or a return in progress |
-| `problem` | An exception, or a deleted waybill |
+| `problem` | An exception, a deleted waybill, or a customs issue |
 | `unknown` | Not yet scanned, or a status we have not mapped yet |
 
-The carrier's own human-readable text (in Ukrainian) is always available as `raw_status`.
-
-⚠️ This mapping is seeded from a third-party source, not a live capture — see
-the early-release note above. Only "not found" (`StatusCode` 3, which never
-reaches `status` at all) has ever actually been observed on the wire.
-`StatusCode` 2 ("Видалено" / Deleted, mapped here to `problem`) used to be a
-disputed mapping between two third-party sources; the carrier's own published
-status table and its own independent status bucketing (both first-party) now
-agree with `problem`, so that disagreement is resolved.
+The carrier's own human-readable text is available as `raw_status`. The
+mapping is sourced from Nova Post's own published 57-code status table, not a
+third-party reconstruction.
 
 ## Events
 
@@ -189,12 +155,11 @@ logger:
 
 ## Troubleshooting
 
-- **A parcel shows `unknown`** — Nova Post has not scanned it yet (their API answers "number not found" until the first scan), or the TTN is wrong. It will pick up automatically once scanned.
-- **A status logs "Unrecognised Nova Post StatusCode"** — please [open an issue](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml) with the logged line so the mapping can be extended.
-- **A warning about a status, a field or a unit** — that is this integration asking for the confirmation it still needs (see the early-release note above). Please [open an issue](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml) with the logged line.
-- **`sender`/`receiver` are sometimes empty** — they read named fields the carrier confirmed exist, but not every parcel is expected to populate them, and no real value has ever been observed; see the early-release note above.
-- **`delivered_at` or `url` are always empty** — neither has a confirmed source field yet; see the early-release note above.
-- **No delivery-window sensors, calendar or `delivery_time_changed` event ever fire** — Nova Post's tracking method exposes no ETA-shaped field at all.
+- **A parcel shows `unknown`** — Nova Post has not scanned it yet, or the tracking code is wrong. It will pick up automatically once scanned.
+- **A status logs "Unrecognised Nova Post tracking code"** — please [open an issue](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml) with the logged line so the mapping can be extended.
+- **`sender`/`receiver` show a country/city, never a name** — that is all this API exposes for either party; there is no name field on the wire.
+- **`delivered_at` looks slightly off** — it is inferred from the newest tracking event in the carrier's "Received" bucket, not a field the carrier names as such. [Open an issue](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml) if it does not match the real delivery time.
+- **The delivery-window sensor shows the same start and end time** — Nova Post gives a single estimated delivery moment, not a `from`/`to` window, so both ends read the same value.
 
 ## Related integrations
 

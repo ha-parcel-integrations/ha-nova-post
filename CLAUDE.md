@@ -34,108 +34,117 @@ you act in one of these areas:
 
 ## Carrier-specific notes
 
-Nova Post targets the official `novaposhta.ua` JSON-RPC surface only — a
-different, weaker-evidence `novapost.com` REST surface exists and is
-deliberately **not** used here (see `carrier-research/nova-post.md#build`).
-Full mechanics live in `carrier-research/api/nova-post/` (private); this
-section is the HA-side decisions and the pre-1.0 posture.
+**2026-08-13: moved from the `novaposhta.ua` JSON-RPC surface
+(`getStatusDocuments`) to the `/site/v.1.0/shipments/tracking/{ttn}` website
+REST surface** (`carrier-research/nova-post.md#build`, addendum 2026-08-13),
+on the strength of a real captured payload (maintainer-supplied TTN `12348`,
+an in-flight CN→MD parcel) that confirmed `history`, `weight` (kg),
+`dimensions` (cm), `pickup_point` and a constructible `url` — everything the
+old surface lacked. Full mechanics live in `carrier-research/api/nova-post/`
+(private); this section is the HA-side decisions and what changed.
 
-- **`apiKey` is always the literal empty string `""`.** This looks exactly
-  like the shape of a BYO-key carrier (the request body *has* an `apiKey`
-  field) but it is a deliberate anonymous path for this one method,
-  live-confirmed by probing all four methods either of the two known HA
-  client repos call. **There is no credential step and there must never be
-  one** — `config_flow.py` never asks for a key.
-- **Branch on `data[0]["StatusCode"]`, never on `success` or the HTTP status.**
-  A bogus/unknown TTN still answers HTTP 200, `success: true`, with
-  `StatusCode: "3"` inside a fully-present `data[0]`. `api.py` treats that as
-  the not-found signal (`async_get_parcel` returns `None`); it never reaches
-  `parcels.py`'s status map, which deliberately has no "3" entry.
-- **This is a genuinely pre-1.0 payload — every field but `StatusCode: "3"`
-  is unconfirmed.** The one live probe used a bogus TTN, so every other field
-  came back present-but-empty. `parcels.check_payload_shape()` is the
-  self-reporting machinery required by CONVENTIONS.md's *Pre-1.0 releases*
-  section: it warns once per field the first time a real response populates
-  something this build has only ever seen empty, once on any top-level key
-  outside the known field inventory (schema drift), and once on the first
-  delivered parcel (to settle the `delivered_at` guess). None of these log
-  values — keys and status codes only.
-- **The known-field inventory (`_EMPTY_ONLY_FIELD_NAMES` /
-  `_KNOWN_TOP_LEVEL_FIELDS` in `parcels.py`) covers 128 keys as of a
-  2026-08-10 correction**, not the original thirteen. A fresh probe of a
-  bogus-TTN response properly enumerated `data[0]`: `ScheduledDeliveryDate`,
-  `AdjustedDate`, `ActualDeliveryDate`, `RecipientFullName`,
-  `RecipientFullNameEW`, `SenderFullNameEW`, `WarehouseRecipientAddress`,
-  `WarehouseRecipientNumber`, `CategoryOfWarehouse`, `ParentBranchName`,
-  `FactualWeight`, `VolumeWeight`, `CalculatedWeight`, `CheckWeight`,
-  `PaymentStatus`, `UndeliveryReasons*`, `TrackingUpdateDate`, `DateScan`,
-  `DateMoving`, `Declarations`, `Services`, `Packaging` are all now known
-  field *names* — first-party fact — even though every one of them still
-  came back empty on that probe. This is purely additive: it stops those
-  fields from tripping the schema-drift warning, nothing else changes.
-- **`StatusCode == "2"` ("Видалено" / Deleted) maps to `problem`, no longer
-  contested.** Two independent third-party sources used to disagree on where
-  it belonged; a 2026-08-10 correction settled it — Nova Post's own published
-  57-code table glosses `2` as "Deleted", and the carrier's own independent
-  bucketing files `2` under a `Removed` category, not with any
-  delivered/received bucket. Both are first-party and both agree with this
-  map's existing
-  choice; the third-party repo's grouping of `2` with `9`/`10`/`11` is now
-  understood to be a filter convenience in that project, not a claim about
-  the parcel. **`2` no longer gets the every-occurrence
-  `_warn_uncertain_status` warning** (that mechanism is gone entirely) — it
-  behaves like every other mapped code, silent, subject only to the general
-  "values have never been seen on the wire" caveat that covers the whole map.
-- **`sender`/`receiver` are populated from the 2026-08-10 named fields**:
-  `sender` ← `SenderFullNameEW`, `receiver` ← `RecipientFullName` (fallback
-  `RecipientFullNameEW` when the first is empty), both `.get()`-guarded with
-  an `or None` empty-string normalisation (the same pattern `pickup_point`
-  already used for this payload's "present but empty" convention) — no
-  further validation, since the *values* behind those names are still
-  unconfirmed. This mirrors `ha-delhivery`'s `clientName`/`consignee`
-  population.
-- **`delivered_at`, `planned_from`/`planned_to` and `url` are still
-  hard-coded `None`, deliberately, even though ETA- and delivered-at-shaped
-  fields now exist.** `ScheduledDeliveryDate`/`AdjustedDate` (candidates for
-  `planned_from`/`planned_to`) and `ActualDeliveryDate` (alongside
-  `RecipientDateTime`, both candidates for `delivered_at`) were all newly
-  named by the 2026-08-10 correction, but their semantics — point estimate
-  vs. window, which field actually populates — are explicitly unconfirmed in
-  the research, and shipping a guess between two named-but-unconfirmed
-  candidates is worse than `None` + the one-shot `_warn_first_delivered`
-  warning. Do not wire these up without a real capture in
-  `carrier-research/api/nova-post/`. No public consumer tracking-page URL has
-  ever been captured for `url`, so that one stays `None` on its own,
-  unrelated basis. Reflected in `const.py`'s `CAPABILITIES` (feeds the docs
-  site's comparison table) — keep the two in agreement if that ever changes.
-- **`weight` and `dimensions` are untouched.** Four more weight fields
-  (`FactualWeight`/`VolumeWeight`/`CalculatedWeight`/`CheckWeight`) are now
-  known field names alongside `DocumentWeight`, but which one populates and
-  in which unit is unresolved and, per the 2026-08-10 research, *more*
-  ambiguous than before (the sibling `novapost.com` API documents grams
-  against other confirmed samples reading as kilograms). `weight` still
-  parses only `DocumentWeight`, unit still assumed kilograms.
-- **No `include_history` option, no `build_history`/`map_event_status`
-  helpers.** `getStatusDocuments` looks like a single current-state snapshot
-  — no events/timeline array has been observed or is implied by either HA
-  client repo that calls this method, and the 2026-08-10 128-key enumeration
-  confirms it — no events array anywhere in the 128 keys. `history` is always
-  `None`, the same call Budbee makes for the same reason (see its CLAUDE.md).
-  The generic delivery-window sensor, the calendar entity and the
-  `delivery_time_changed` event stay in place (suite parity) even though
-  `planned_from`/`planned_to` never populate for this carrier — same
-  situation as Cainiao.
-- **Diagnostics redaction (`diagnostics.py`'s `TO_REDACT`) grew ten exact
-  keys on 2026-08-10** to match the newly-named fields: `RecipientFullName`,
-  `RecipientFullNameEW`, `SenderFullNameEW`, `WarehouseRecipientAddress`,
-  `WarehouseRecipientNumber`, `ParentBranchName`, `UndeliveryReasons`,
-  `UndeliveryReasonsDate`, `UndeliveryReasonsSubtypeDescription`,
-  `PaymentStatus` — alongside, not instead of, the existing
-  City*/Warehouse*/Phone* prefix-based defensive pass.
-- **Tracking-code format is `^\d{14}$`, tighter than the template default.**
-  Every TTN referenced anywhere in the research — including the bogus probe
-  number `20450000000000` — is exactly 14 digits, so this is safe to ship as
-  a hard requirement rather than the usual permissive regex.
+- **`GET`, keyless, tracking code in the URL path — not a POST body.**
+  `TRACKING_API_URL` in `const.py` is now a `.format(ttn=...)` template; the
+  old surface's `Documents` list body is gone. No headers, no key, nothing to
+  register — control-tested against a protected sibling on the same host
+  (`/mobileapp/v.1.1/` answers `401` with no credential) and against a
+  route-existence oracle that separates "no such route" from "no such
+  shipment", both in `novapost-tracking.md`.
+- **Not-found is a plain HTTP 404, not an in-body status code.** The old
+  surface always answered `200`/`success: true` and branched on
+  `StatusCode == "3"`; this one answers `404 {"errorMessage": "not_found"}`
+  for an unknown number. `api.py`'s `async_get_parcel` returns `None` on 404,
+  raises `NovaPostApiError` on anything else non-2xx.
+- **Host is `novaposhta.ua`, not `novapost.com`.** Both are live-confirmed to
+  serve byte-identical bodies for the same TTN — one shared NOVA-group
+  backend, two brand hostnames — chosen to match this integration's existing
+  branding and its tracking-page URL.
+- **Tracking-code format widened to `^[A-Za-z0-9]{4,30}$`, and the surface
+  itself validates nothing** — "this route takes any string"
+  (`novapost-tracking.md` "Surface B"). Three shapes are confirmed live: the
+  original 14-digit Ukrainian domestic TTN, short numeric reference codes
+  (`12345`/`12348`/`12349`), and cross-border alphanumeric aliases
+  (`SHCN8143247690`, 14 chars). `normalize_tracking_code` now upper-cases and
+  keeps letters instead of stripping them — the old digits-only regex would
+  have rejected the cross-border form outright.
+- **The 57-code status map (`_STATUS_MAP` in `parcels.py`) replaced the old
+  12-code seed wholesale**, sourced from Nova Post's own published table
+  (`carrier-research/api/nova-post/novapost-tracking.md#status-vocabulary`) —
+  the same numeric `code` space `tracking[].code` uses. Map on `code` only,
+  never `event_name` (server-rendered, localised text — the same trap as
+  SunYou's `toLanguage`). The trap that matters most survives from the old
+  map: codes `7`/`8` ("arrived at branch/locker") are `at_pickup_point`, not
+  `delivered` — the carrier's own word for handed-over is "Received"
+  (`9`/`10`/`11`/`106`).
+- **`sender`/`receiver` are now geography, not identity — a real regression.**
+  This surface's `sender`/`recipient` blocks carry only `country_code`,
+  `settlement`, `divisionId` and coordinates; no name field exists anywhere on
+  the wire. The old surface's `SenderFullNameEW`/`RecipientFullName` have no
+  equivalent here. `_format_party()` renders `"Chișinău, MD"` (settlement +
+  country) or whichever half is present. Accepted deliberately for the fields
+  this move gains — `sender`/`receiver` are not part of `KNOWN_CAPABILITIES`,
+  so this loss does not show up on the docs site's capability table; it only
+  shows up here and in `## Log`-style commit messages.
+- **`delivered_at` is inferred, not read from a named field.** No field on
+  this surface is named anything like `delivered_at` — `_delivered_at()`
+  scans `tracking[]` backwards for the newest hop whose `code` is in the
+  "Received" bucket (`9`/`10`/`11`/`106`) and takes its `date`. Warns once via
+  `_warn_delivered_at_inferred` the first time this fires — a heads-up, not a
+  bug report request, since it *is* now populated (unlike the old surface,
+  where it stayed `None` forever).
+- **`planned_from` and `planned_to` are both `scheduled_delivery_date`.** The
+  field is a single point estimate, not a `from`/`to` window (on the one
+  capture on file it lands 26 minutes before the final tracking hop) —
+  represented as a zero-width window rather than leaving one end `None`, so
+  `sort_parcels_by_ts` on `planned_from` still works and the delivery-window
+  sensor still shows something.
+- **`pickup_point` and `raw_status` come from the newest `tracking[]` hop**,
+  not gated on the current status — mirrors the old surface's
+  `WarehouseRecipient`, which was shown regardless of whether the parcel had
+  actually arrived.
+- **`url` is always constructible once a tracking code exists**, even for a
+  code the carrier does not (yet) recognise — `TRACKING_URL_TEMPLATE` in
+  `const.py` is `https://novaposhta.ua/tracking/{ttn}` (no locale prefix: the
+  no-prefix form is confirmed to resolve regardless of the user's language,
+  unlike `novapost.com`'s required two-segment `{lang}-{country}` tag).
+- **`weight` is `total_weight` (kg), `dimensions` is `parcels[0]`'s
+  `length`/`width`/`height` (cm)** — both confirmed on the real capture
+  (`total_weight: 0.36` against `24×17×2`, only sane as kg/cm), resolving the
+  old surface's g/mm-vs-kg/cm ambiguity for this one. Only the first
+  `parcels[]` entry is read; a multi-parcel shipment's later entries are not
+  aggregated — a scope decision, not a research finding, revisit if a
+  multi-parcel capture ever surfaces.
+- **`history` is real now, and `include_history` is a real option.**
+  `tracking[]` is an ordered, geo-tagged timeline (confirmed oldest→newest by
+  the real capture's timestamps) — `build_history()` maps each hop through the
+  same status map used for the current status, capped at
+  `HISTORY_MAX_EVENTS` (20). The options flow gained a `history` section
+  (`CONF_INCLUDE_HISTORY`, off by default), mirroring every other suite
+  carrier's convention — including this one costing no extra request, unlike
+  carriers where history needs a second call.
+- **The pre-1.0 self-reporting machinery was replaced, not extended.** The old
+  "first non-empty field" mechanism (`_EMPTY_ONLY_FIELD_NAMES`,
+  `_warn_first_nonempty_field`) existed for a payload whose values had only
+  ever been seen empty — that is no longer true; the payload is confirmed.
+  What is still a guess and still warns once: an unrecognised status `code`
+  (`_warn_unmapped_status`), an unknown top-level key
+  (`_warn_schema_drift`/`check_payload_shape`, keyed off the presence of a
+  `tracking` key rather than the old `StatusCode` key to tell a real response
+  from the coordinator's `{"number": code}` placeholder), and the
+  `delivered_at` inference above.
+- **Diagnostics redaction (`diagnostics.py`'s `TO_REDACT`) was rewritten, not
+  extended** — none of the old field names (`Number`, `WarehouseRecipient`,
+  `CitySender`, …) exist on this surface. `sender`/`recipient` are redacted as
+  **whole blocks** (mirrors `ha-dynalogic`'s `Addressee`/`ContactInformation`
+  convention) because this surface carries something the old one never did:
+  GPS coordinates per party and per tracking hop. Location-shaped leaves
+  inside `tracking[]` (`settlement_name`, `division_name`,
+  `settlement_external_id`, `post_code`, `division_coordinates`) are redacted
+  individually, alongside `number`/`parcel_number` (echo the barcode at every
+  level), `alternative_numbers`, and the financial/free-text
+  `parcel_description`/`insurance_cost`/`insurance_cost_currency_code`.
+  `country_code` is deliberately **not** redacted — alone it is not specific
+  enough to locate a person and is useful for debugging the status mapping.
 
 ## Options and reloads
 

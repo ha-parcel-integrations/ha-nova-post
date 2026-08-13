@@ -18,9 +18,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import NovaPostApiClient, NovaPostApiError
 from .const import (
+    CONF_INCLUDE_HISTORY,
     CONF_PARCELS,
     CONF_REFRESH_INTERVAL,
     CONF_TRACKING_CODE,
+    DEFAULT_INCLUDE_HISTORY,
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     ParcelStatus,
@@ -137,26 +139,31 @@ class NovaPostCoordinator(DataUpdateCoordinator[list[dict]]):
                 continue
 
             if result is None:
-                # Unknown code (StatusCode "3"), or not scanned yet. Keep
+                # Unknown/not-found (HTTP 404), or not scanned yet. Keep
                 # prior data if we have it, otherwise show a pending
                 # placeholder so the user still sees the parcel they asked us
-                # to track. No ``StatusCode`` key here on purpose — that is
+                # to track. No ``tracking`` key here on purpose — that is
                 # what tells parcels.check_payload_shape() to skip this
                 # placeholder rather than treating it as a real response.
-                raws.append(self._raw_cache.get(code) or {"Number": code})
+                raws.append(self._raw_cache.get(code) or {"number": code})
                 continue
 
-            # The response's own tracking number (``Number``) can in
+            # The response's own tracking number (``number``) can in
             # principle be missing; fall back to the code we asked for so the
             # sensor keeps its key.
-            result.setdefault("Number", code)
+            result.setdefault("number", code)
             self._raw_cache[code] = result
             raws.append(result)
 
         if codes and errors == len(codes) and not raws:
             raise UpdateFailed("Nova Post unreachable for all tracked parcels")
 
-        normalized = [normalize_parcel(raw) for raw in raws]
+        include_history = self.config_entry.options.get(
+            CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY
+        )
+        normalized = [
+            normalize_parcel(raw, include_history=include_history) for raw in raws
+        ]
         active = [parcel for parcel in normalized if not parcel["delivered"]]
         delivered = [parcel for parcel in normalized if parcel["delivered"]]
 

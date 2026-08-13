@@ -6,14 +6,25 @@ carrier-specific mapping (which you rewrite per carrier) apart from the
 coordinator (which is nearly identical everywhere), and it makes the mapping
 trivially unit-testable without spinning up HA.
 
-Nova Post-specific here: :data:`_STATUS_MAP`, :func:`normalize_parcel` and the
-pre-1.0 self-reporting warnings (see :func:`check_payload_shape`). Everything
-else — the timestamp parsing, the sort contract, the delivered filter, the
-one-shot warning for unmapped statuses — is suite-wide machinery and should be
-left alone.
+**2026-08-13: rewritten for the ``/site/v.1.0/`` REST surface**, replacing the
+``getStatusDocuments`` JSON-RPC mapping (carrier-research/nova-post.md "##
+Build", addendum 2026-08-13; full field table in carrier-research/api/
+nova-post/novapost-tracking.md). The trigger was a real captured payload (TTN
+``12348``, an in-flight CN→MD parcel) that confirmed ``history``, ``weight``
+(kg), ``dimensions`` (cm), ``pickup_point`` and a constructible ``url`` — all
+of which the old surface lacked. The one thing lost in the move:
+``sender``/``receiver`` carry geography (country/settlement) here, never a
+name — the old surface's ``SenderFullNameEW``/``RecipientFullName`` have no
+equivalent on this one. ``sender``/``receiver`` are not part of
+``KNOWN_CAPABILITIES`` (const.py), so that loss does not show up as a
+capability regression on the docs site, but it is a real one.
 
-No ``history``/``build_history`` here: ``getStatusDocuments`` looks like a
-single current-state snapshot, not a timeline — see const.py.
+The payload is now **confirmed**, not reconstructed, so most of this module's
+old "first non-empty field" self-reporting (built for a payload whose values
+had only ever been seen empty) is gone. What is still a guess and still
+warns once: the delivered-at inference (no field is named anything like
+``delivered_at`` — the newest "Received"-bucket ``tracking[]`` hop is the best
+candidate, not a confirmed one) and an unrecognised status code.
 """
 from __future__ import annotations
 
@@ -28,6 +39,8 @@ from .const import (
     CONF_DELIVERED_FILTER_TYPE,
     DEFAULT_DELIVERED_FILTER_AMOUNT,
     DEFAULT_DELIVERED_FILTER_TYPE,
+    HISTORY_MAX_EVENTS,
+    TRACKING_URL_TEMPLATE,
     ParcelStatus,
 )
 
@@ -44,46 +57,79 @@ NEW_ISSUE_URL = (
     "?template=unrecognised_status.yml"
 )
 
-# Nova Poshta's ``StatusCode`` → canonical ParcelStatus. Reproduced from
-# carrier-research/api/nova-post/tracking.md#status-vocabulary, itself seeded
-# from a single third-party repo's ``const.py`` ("real data from
-# getStatusDocuments API" is that repo's own claim, not a capture of ours).
-# **Only code "3" (not found) has ever actually been observed on the wire** —
-# everything else is this doc's best reading of that seed, corroborated only
-# partially by a second, independent source. Treat the whole map as the seed
-# it is until real parcels exercise it.
-#
-# Code "3" ("Номер не знайдено" / number not found) is deliberately absent —
-# it is not a parcel state, it is the not-found signal itself, handled in
-# api.py by returning ``None`` before this map is ever consulted.
+# ``tracking[].code`` → canonical ParcelStatus. Nova Post's own published
+# 57-code table (carrier-research/api/nova-post/novapost-tracking.md
+# "## Status vocabulary"), the authority — the app's independent 18-category
+# bucketing corroborates it, in particular the trap that matters most: the
+# carrier's own "Delivered" wording (codes 7/8) means *arrived at the branch
+# or locker*, not handed over. That is ``at_pickup_point`` here; the carrier's
+# word for actually handed over is "Received" (9/10/11/106), mapped to
+# ``delivered``. Neither the published table nor the app's bucketing is a
+# superset of the other — an unmapped code still falls back to ``unknown``
+# with a one-shot warning, same as every other suite carrier.
 _STATUS_MAP: dict[str, ParcelStatus] = {
-    "1": ParcelStatus.REGISTERED,   # Нова накладна — new waybill, not yet handed over
-    "2": ParcelStatus.PROBLEM,      # Видалено — deleted; resolved 2026-08-10, see below
-    "4": ParcelStatus.IN_TRANSIT,   # Відправлено — dispatched
-    "5": ParcelStatus.IN_TRANSIT,   # В дорозі — in transit
-    "6": ParcelStatus.IN_TRANSIT,   # У місті призначення — in the destination city
-    "7": ParcelStatus.AT_PICKUP_POINT,  # Прибуло у відділення — arrived at a branch
-    "8": ParcelStatus.AT_PICKUP_POINT,  # Прибуло у поштомат — arrived at a locker
-    "9": ParcelStatus.DELIVERED,    # Отримано — received (picked up)
-    "10": ParcelStatus.RETURNING,   # Відмова від отримання — refused to receive
-    "11": ParcelStatus.RETURNING,   # Повернення — return in progress
-    "12": ParcelStatus.PROBLEM,     # Проблемне відправлення — problem shipment
+    "1": ParcelStatus.REGISTERED,        # Ready to send
+    "2": ParcelStatus.PROBLEM,           # Deleted
+    "4": ParcelStatus.IN_TRANSIT,        # Accepted for sending
+    "5": ParcelStatus.IN_TRANSIT,        # Sent from the sender's division
+    "6": ParcelStatus.IN_TRANSIT,        # Arrived in the recipient's city
+    "7": ParcelStatus.AT_PICKUP_POINT,   # Arrived at the division
+    "8": ParcelStatus.AT_PICKUP_POINT,   # Arrived at the Postomat
+    "9": ParcelStatus.DELIVERED,         # Closed
+    "10": ParcelStatus.DELIVERED,        # Closed, money transfer sent to sender
+    "11": ParcelStatus.DELIVERED,        # Closed, sender received the money transfer
+    "13": ParcelStatus.IN_TRANSIT,       # Arrival at transit sorting centre
+    "16": ParcelStatus.IN_TRANSIT,       # Departure from transit sorting centre
+    "17": ParcelStatus.IN_TRANSIT,       # Transit-warehouse arrival (carrier: unused)
+    "19": ParcelStatus.IN_TRANSIT,       # Transit-warehouse departure (carrier: unused)
+    "30": ParcelStatus.IN_TRANSIT,       # Arrived at customs terminal
+    "31": ParcelStatus.IN_TRANSIT,       # Departed from customs terminal
+    "99": ParcelStatus.PROBLEM,          # Delivery to Postomat impossible
+    "101": ParcelStatus.OUT_FOR_DELIVERY,  # Uploaded to the courier
+    "102": ParcelStatus.RETURNING,       # Returns (sender ordered a return)
+    "103": ParcelStatus.RETURNING,       # Refusal of shipment
+    "104": ParcelStatus.IN_TRANSIT,      # Redirecting
+    "105": ParcelStatus.PROBLEM,         # Utilization
+    "106": ParcelStatus.DELIVERED,       # Received; return-shipment docs created
+    "110": ParcelStatus.IN_TRANSIT,      # Transferred to temporary storage
+    "111": ParcelStatus.PROBLEM,         # Failed delivery attempt
+    "112": ParcelStatus.IN_TRANSIT,      # Delivery date postponed
+    "113": ParcelStatus.PROBLEM,         # Storage period expired
+    "114": ParcelStatus.IN_TRANSIT,      # Customs: awaiting clearance
+    "115": ParcelStatus.IN_TRANSIT,      # Arrived at customs terminal
+    "116": ParcelStatus.PROBLEM,         # Broker refusal — under resolution
+    "117": ParcelStatus.PROBLEM,         # Cargo not found or lost (customs)
+    "118": ParcelStatus.PROBLEM,         # Forbidden content — delivery impossible
+    "119": ParcelStatus.IN_TRANSIT,      # Customs: clearance in progress
+    "120": ParcelStatus.IN_TRANSIT,      # Customs: clearance completed
+    "121": ParcelStatus.IN_TRANSIT,      # Sent to destination city after customs
+    "122": ParcelStatus.IN_TRANSIT,      # Customs: preparing documents
+    "123": ParcelStatus.PROBLEM,         # Awaiting information from the recipient
+    "125": ParcelStatus.IN_TRANSIT,      # Customs: verifying
+    "126": ParcelStatus.IN_TRANSIT,      # Customs: document processing
+    "127": ParcelStatus.IN_TRANSIT,      # Customs: document processing
+    "128": ParcelStatus.IN_TRANSIT,      # Customs: document processing
+    "130": ParcelStatus.PROBLEM,         # Import prohibited by customs
+    "131": ParcelStatus.RETURNING,       # Return of uncleared cargo
+    "132": ParcelStatus.RETURNING,       # Preparing for return
+    "133": ParcelStatus.PROBLEM,         # Client communication re: customs comment
+    "134": ParcelStatus.IN_TRANSIT,      # Handed to the customs broker
+    "135": ParcelStatus.IN_TRANSIT,      # Placed in storage area
+    "138": ParcelStatus.PROBLEM,         # Delay: incorrect recipient information
+    "141": ParcelStatus.PROBLEM,         # Storage period expired
+    "144": ParcelStatus.PROBLEM,         # Storage period expired
+    "149": ParcelStatus.IN_TRANSIT,      # In storage
+    "155": ParcelStatus.PROBLEM,         # Transferred for disposal
+    "197": ParcelStatus.IN_TRANSIT,      # Customs inspection
+    "198": ParcelStatus.IN_TRANSIT,      # Customs inspection
+    "199": ParcelStatus.IN_TRANSIT,      # Customs: clearance stage
+    "999": ParcelStatus.UNKNOWN,         # Undetermined — the carrier's own catch-all
 }
 
-# Code "2" ("Видалено" / Deleted) **was** a genuine open disagreement between
-# two third-party sources — one bucketed it as an exception (this map's
-# choice, ``problem``), a second, independent repo bucketed it with 9/10/11 as
-# "terminal/delivered-class" and flagged its own choice as odd. **Resolved
-# 2026-08-10:** Nova Post's own published 57-code table glosses "2" as
-# "Deleted", and the carrier's own independent bucketing files "2" under a `Removed`
-# category, not with any delivered/received bucket — two first-party sources
-# that both agree with this map's existing choice. The other repo's grouping
-# of "2" with 9/10/11 is now understood to be a filter convenience in that
-# project, not a claim about the parcel. "2" therefore gets no special
-# every-occurrence warning any more — it behaves like every other mapped
-# code, still subject only to the general "values have never been seen on the
-# wire" caveat that covers the whole map (carrier-research/nova-post.md, "##
-# Log", UPDATE 2026-08-10).
+# "Received" bucket — the carrier's own word for actually handed over, as
+# opposed to merely arrived and waiting. Used both by the status map above and
+# by ``_delivered_at`` below to find which hop was the delivery itself.
+_RECEIVED_CODES = frozenset({"9", "10", "11", "106"})
 
 # Status codes we have already warned about, so each unmapped one is logged
 # only once per HA session instead of on every poll.
@@ -96,27 +142,21 @@ def _warn_unmapped_status(code: str) -> None:
         return
     _unmapped_statuses_logged.add(code)
     _LOGGER.warning(
-        "Unrecognised Nova Post StatusCode — help us map it. Open an issue "
-        "and paste this line: %s\n  StatusCode=%s → reported as 'unknown'",
+        "Unrecognised Nova Post tracking code — help us map it. Open an issue "
+        "and paste this line: %s\n  code=%s → reported as 'unknown'",
         NEW_ISSUE_URL,
         code,
     )
 
 
 def map_parcel_status(code: str | None) -> ParcelStatus:
-    """Map a Nova Post ``StatusCode`` to a canonical :class:`ParcelStatus`.
+    """Map a Nova Post ``tracking[].code`` to a canonical :class:`ParcelStatus`.
 
-    ``None`` (a not-yet-scanned/pending placeholder) reports ``unknown``
-    silently; an unrecognised code reports ``unknown`` with a one-shot
-    warning. Map on the numeric code only — never on ``Status``, the
-    Ukrainian free-text label paired with it, the same trap as SunYou's
-    ``toLanguage``-localised event text (see
-    carrier-research/api/nova-post/tracking.md#payload--canonical-mapping).
-
-    Every mapped code, including "2" (see the comment above ``_STATUS_MAP``),
-    is returned silently — the per-code "genuine disagreement" warning that
-    used to single "2" out is gone as of the 2026-08-10 correction; only a
-    wholly unmapped code still self-reports.
+    ``None`` (no scan yet, or a not-yet-fetched placeholder) reports
+    ``unknown`` silently; an unrecognised code reports ``unknown`` with a
+    one-shot warning. Map on the numeric ``code`` only — never on
+    ``event_name``, the human-readable text paired with it, the same trap as
+    SunYou's ``toLanguage``-localised event text.
     """
     if not code:
         return ParcelStatus.UNKNOWN
@@ -144,117 +184,34 @@ def parse_iso(value: str | None) -> datetime | None:
     return parsed
 
 
-def to_iso_timestamp(value: Any) -> str | None:
-    """Return an ISO 8601 string for an API timestamp field.
-
-    Numbers are treated as **epoch milliseconds** — the common case for the
-    consumer APIs in this suite. Strings pass through untouched; their
-    consumers are guarded by :func:`parse_iso`. No Nova Poshta timestamp has
-    ever been seen with a real value (see :func:`check_payload_shape`), so
-    this is currently unexercised by ``normalize_parcel`` itself — kept for
-    the moment a field like ``RecipientDateTime`` is confirmed.
-    """
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        try:
-            return datetime.fromtimestamp(value / 1000, tz=timezone.utc).isoformat()
-        except (OverflowError, OSError, ValueError):
-            return None
-    return str(value)
-
-
 # ---------------------------------------------------------------------------
 # Pre-1.0 self-reporting (see .github/CONVENTIONS.md § Pre-1.0 releases)
-#
-# Every field below was seen on the live probe only as an *empty* key — the
-# probe used a bogus TTN, so no real shipment has ever populated them. Each
-# check below fires once, the first time reality gives us more than the
-# schema did, so the guesses in this file get confirmed or corrected by real
-# users instead of by waiting. Keys and codes only, never PII values.
 # ---------------------------------------------------------------------------
 
-# Fields only ever observed as an empty key. The exact ``City*``/``Phone*``
-# sibling names are unconfirmed (tracking.md notes "more than one City* key
-# per side" without enumerating them), so those two families are matched by
-# prefix instead of by exact name.
-#
-# Expanded 2026-08-10: a fresh probe enumerated the response item properly
-# and found 128 keys, not thirteen (tracking.md "Correction 2026-08-10 — the
-# item carries 128 keys, not thirteen"). These are now known field *names* —
-# first-party fact — even though their *values* remain unconfirmed (every one
-# came back empty on the only probe ever run, a bogus TTN). Adding them here
-# is purely additive: it stops a real response from tripping the schema-drift
-# warning below over a field the carrier has always sent, and lets
-# ``_warn_first_nonempty_field`` do its job the day one of them is finally
-# populated. ``RecipientFullName``/``RecipientFullNameEW``/
-# ``SenderFullNameEW`` are also read directly by ``normalize_parcel`` now
-# (see ``sender``/``receiver`` below) — being in this set does not change
-# that, it only governs the schema-drift/first-nonempty-value warnings.
-_EMPTY_ONLY_FIELD_NAMES = frozenset(
+# The full top-level key inventory of a real captured response (TTN 12348,
+# carrier-research/api/nova-post/novapost-tracking.md "Real captured
+# response"). A key outside this set is schema drift worth hearing about —
+# the public surface may have grown since this was written.
+_KNOWN_TOP_LEVEL_FIELDS = frozenset(
     {
-        "DateCreated",
-        "RecipientDateTime",
-        "WarehouseSender",
-        "WarehouseRecipient",
-        "CargoType",
-        "DocumentCost",
-        "AnnouncedPrice",
-        "DocumentWeight",
-        "ScheduledDeliveryDate",
-        "AdjustedDate",
-        "ActualDeliveryDate",
-        "RecipientFullName",
-        "RecipientFullNameEW",
-        "SenderFullNameEW",
-        "WarehouseRecipientAddress",
-        "WarehouseRecipientNumber",
-        "CategoryOfWarehouse",
-        "ParentBranchName",
-        "FactualWeight",
-        "VolumeWeight",
-        "CalculatedWeight",
-        "CheckWeight",
-        "PaymentStatus",
-        "UndeliveryReasons",
-        "UndeliveryReasonsDate",
-        "UndeliveryReasonsSubtypeDescription",
-        "TrackingUpdateDate",
-        "DateScan",
-        "DateMoving",
-        "Declarations",
-        "Services",
-        "Packaging",
+        "number",
+        "sender",
+        "recipient",
+        "scheduled_delivery_date",
+        "payer_type",
+        "total_weight",
+        "tracking",
+        "alternative_numbers",
+        "parcels",
+        "alternativeNumbersGW",
+        "alternativeNumbersGWNew",
+        "deliveryInfo",
+        "parcelActions",
     }
 )
-_EMPTY_ONLY_FIELD_PREFIXES = ("City", "Phone")
 
-# The full field inventory tracking.md's live probe actually returned a key
-# for. A top-level key in a real ``data[0]`` item outside this set (and
-# outside the two anticipated-but-unnamed prefixes above) is schema drift —
-# the public surface grew a field this build never saw.
-_KNOWN_TOP_LEVEL_FIELDS = frozenset({"Number", "StatusCode", "Status"}) | (
-    _EMPTY_ONLY_FIELD_NAMES
-)
-
-_nonempty_field_logged: set[str] = set()
 _schema_drift_logged = False
-_first_delivered_logged = False
-
-
-def _warn_first_nonempty_field(field: str) -> None:
-    """Log the first time a field only ever seen empty carries a real value."""
-    if field in _nonempty_field_logged:
-        return
-    _nonempty_field_logged.add(field)
-    _LOGGER.warning(
-        "Nova Post populated the %r field for the first time — this build has "
-        "only ever seen it empty, so its shape and unit are unconfirmed. "
-        "Please help us settle it by opening an issue and pasting this line, "
-        "redacted diagnostics ideal (never the raw value): %s",
-        field,
-        NEW_ISSUE_URL,
-    )
+_delivered_at_inferred_logged = False
 
 
 def _warn_schema_drift(fields: list[str]) -> None:
@@ -273,64 +230,136 @@ def _warn_schema_drift(fields: list[str]) -> None:
     )
 
 
-def _warn_first_delivered() -> None:
-    """Log the first ``StatusCode == "9"`` parcel, to settle ``delivered_at``.
+def _warn_delivered_at_inferred() -> None:
+    """Log once, the first time ``delivered_at`` is filled in by inference.
 
-    ``delivered_at`` is deliberately left ``None`` rather than guessed from
-    ``RecipientDateTime`` or ``ActualDeliveryDate`` — two unconfirmed
-    candidates now exist (the 2026-08-10 correction added the second), and a
-    real delivered parcel has to decide between them, not this file. This is
-    what turns the guess into a settled fact.
+    No field on this surface is named anything like ``delivered_at`` — the
+    newest ``tracking[]`` hop whose code falls in the "Received" bucket is the
+    best candidate, not a confirmed one (carrier-research/api/nova-post/
+    novapost-tracking.md "What the real capture confirms"). This is a one-shot
+    heads-up, not a request for a bug report: if a user's own delivery
+    timestamp does not match what shows up here, that is useful to know.
     """
-    global _first_delivered_logged
-    if _first_delivered_logged:
+    global _delivered_at_inferred_logged
+    if _delivered_at_inferred_logged:
         return
-    _first_delivered_logged = True
+    _delivered_at_inferred_logged = True
     _LOGGER.warning(
-        "Nova Post reported a delivered parcel (StatusCode 9) for the first "
-        "time. This integration does not fill in 'delivered_at' yet — "
-        "RecipientDateTime and ActualDeliveryDate are both plausible sources "
-        "but neither has ever been confirmed. Please help us settle it by "
-        "opening an issue and pasting this line, redacted diagnostics "
-        "ideal: %s",
+        "Nova Post marked a parcel delivered — 'delivered_at' is inferred "
+        "from the newest tracking event in the carrier's 'Received' bucket, "
+        "not a field the carrier names as such. If it does not match the "
+        "real delivery time, please open an issue: %s",
         NEW_ISSUE_URL,
     )
 
 
 def check_payload_shape(raw: dict) -> None:
-    """One-shot WARNINGs for the parts of the payload still unconfirmed.
+    """One-shot WARNING for a real response carrying an unknown top-level key.
 
-    Skips the coordinator's pending placeholder (a bare ``{"Number": code}``
-    dict with no ``StatusCode``) — that is a normal not-yet-fetched state, not
-    a real response to have an opinion about.
+    Skips the coordinator's pending placeholder (a bare ``{"number": code}``
+    dict with no ``tracking`` key) — every real response carries a
+    ``tracking`` key (an empty list at worst), so its absence is what marks
+    the placeholder rather than a real response to have an opinion about.
     """
-    if "StatusCode" not in raw:
+    if "tracking" not in raw:
         return
 
-    unknown_fields = sorted(
-        key
-        for key in raw
-        if key not in _KNOWN_TOP_LEVEL_FIELDS
-        and not any(key.startswith(prefix) for prefix in _EMPTY_ONLY_FIELD_PREFIXES)
-    )
+    unknown_fields = sorted(key for key in raw if key not in _KNOWN_TOP_LEVEL_FIELDS)
     if unknown_fields:
         _warn_schema_drift(unknown_fields)
 
-    for key, value in raw.items():
-        if value in (None, ""):
-            continue
-        if key in _EMPTY_ONLY_FIELD_NAMES or any(
-            key.startswith(prefix) for prefix in _EMPTY_ONLY_FIELD_PREFIXES
-        ):
-            _warn_first_nonempty_field(key)
+
+def _tracking_hops(raw: dict) -> list[dict]:
+    """Return ``tracking[]`` as a list of dicts, oldest→newest, as returned.
+
+    Confirmed order by the timestamps in the one real capture on file — see
+    novapost-tracking.md "What the real capture confirms". Non-dict entries
+    are dropped defensively rather than raising.
+    """
+    hops = raw.get("tracking")
+    if not isinstance(hops, list):
+        return []
+    return [hop for hop in hops if isinstance(hop, dict)]
+
+
+def _hop_code(hop: dict) -> str | None:
+    """Return a tracking hop's ``code`` as a string, or ``None``."""
+    code = hop.get("code")
+    return str(code) if code not in (None, "") else None
+
+
+def _format_party(party: Any) -> str | None:
+    """Return a ``sender``/``recipient`` block as one display string.
+
+    This surface carries geography only — ``country_code``, ``settlement``,
+    ``divisionId``, latitude/longitude — never a name (unlike the old JSON-RPC
+    surface's ``SenderFullNameEW``/``RecipientFullName``). ``"Chișinău, MD"``
+    when both are present, one alone when only one is, ``None`` when neither
+    is (the sender side of an international parcel commonly has no
+    ``settlement`` at all — see the real capture).
+    """
+    if not isinstance(party, dict):
+        return None
+    settlement = str(party.get("settlement") or "").strip()
+    country = str(party.get("country_code") or "").strip()
+    if settlement and country:
+        return f"{settlement}, {country}"
+    return settlement or country or None
+
+
+def _pickup_point(hops: list[dict]) -> str | None:
+    """Return the newest tracking hop's ``division_name``, or ``None``.
+
+    Not gated on status: the old surface's ``WarehouseRecipient`` was shown
+    regardless of whether the parcel had actually arrived yet, and this
+    mirrors that — the most recent hop's location is informative even while a
+    parcel is still in transit.
+    """
+    if not hops:
+        return None
+    return str(hops[-1].get("division_name") or "").strip() or None
+
+
+def _delivered_at(hops: list[dict]) -> str | None:
+    """Return the timestamp of the newest "Received"-bucket hop, or ``None``.
+
+    Scans from the newest hop backwards — see :func:`_warn_delivered_at_inferred`
+    for why this is a best-candidate inference, not a confirmed field.
+    """
+    for hop in reversed(hops):
+        if _hop_code(hop) in _RECEIVED_CODES:
+            _warn_delivered_at_inferred()
+            return hop.get("date")
+    return None
+
+
+def build_history(hops: list[dict], *, max_events: int = HISTORY_MAX_EVENTS) -> list[dict]:
+    """Build the canonical ``history`` list from ``tracking[]``.
+
+    Each entry is ``{timestamp, status, raw_status}`` — identical across all
+    suite carriers, and top-level (not under ``raw``) so it survives the
+    aggregator's ``strip_raw()``. ``tracking[]`` is already oldest→newest (see
+    :func:`_tracking_hops`), so this only drops hops without a usable
+    timestamp and caps to the most recent ``max_events``.
+    """
+    entries = [
+        {
+            "timestamp": hop["date"],
+            "status": map_parcel_status(_hop_code(hop)),
+            "raw_status": hop.get("event_name") or _hop_code(hop),
+        }
+        for hop in hops
+        if hop.get("date")
+    ]
+    return entries[-max_events:]
 
 
 def _parse_weight_kg(value: Any) -> float | None:
-    """Parse ``DocumentWeight`` as a float, ``None`` on anything else.
+    """Parse ``total_weight`` as a float, ``None`` on anything else.
 
-    Unit is **assumed kilograms** pending a real value — see
-    :func:`check_payload_shape`, which warns the first time this field is
-    ever seen non-empty.
+    Confirmed kilograms on a real capture (``total_weight: 0.36`` against a
+    24×17×2 cm parcel) — see novapost-tracking.md "What the real capture
+    confirms".
     """
     if value in (None, ""):
         return None
@@ -340,7 +369,33 @@ def _parse_weight_kg(value: Any) -> float | None:
         return None
 
 
-def normalize_parcel(raw: dict) -> dict:
+def _dimensions(parcels: Any) -> dict | None:
+    """Return the canonical ``dimensions`` dict from ``parcels[0]``, or ``None``.
+
+    Confirmed centimetres on the same real capture as the weight above
+    (``length: 24, width: 17, height: 2`` against ``total_weight: 0.36``).
+    Only the first ``parcels[]`` entry is read — a multi-parcel shipment's
+    later entries are not aggregated, a deliberate scope decision (see
+    CLAUDE.md) rather than a research finding.
+    """
+    if not isinstance(parcels, list) or not parcels or not isinstance(parcels[0], dict):
+        return None
+    parcel = parcels[0]
+    try:
+        length = int(parcel["length"])
+        width = int(parcel["width"])
+        height = int(parcel["height"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {
+        "length": length,
+        "width": width,
+        "height": height,
+        "text": f"{length} x {width} x {height} cm",
+    }
+
+
+def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
     """Return a carrier-agnostic parcel dict with the payload under ``raw``.
 
     The **keys of the returned dict are the contract**: every carrier in the
@@ -348,71 +403,54 @@ def normalize_parcel(raw: dict) -> dict:
     cross-carrier dashboards depend on it. A key Nova Post does not expose is
     ``None``, never omitted.
 
-    What Nova Post does not give us (or gives us too unconfirmed to trust),
-    and why the ``None``s are intentional — see
-    carrier-research/api/nova-post/tracking.md#payload--canonical-mapping:
+    Build decisions worth knowing (see CLAUDE.md for the full writeup):
 
-    * **``sender`` / ``receiver``** — populated since the 2026-08-10
-      correction. The earlier "no explicit name-bearing field has ever been
-      enumerated" claim was an artefact of a partial reading of the probe: a
-      full 128-key enumeration named ``SenderFullNameEW``,
-      ``RecipientFullName`` and ``RecipientFullNameEW``. Those are now
-      first-party field *names*, so ``sender`` reads ``SenderFullNameEW`` and
-      ``receiver`` reads ``RecipientFullName`` (falling back to
-      ``RecipientFullNameEW`` when the first is empty) — ``.get()``-guarded,
-      with the same ``or None`` empty-string normalisation ``pickup_point``
-      already uses for this payload's "present but empty" convention, and no
-      further validation, since the *values* behind those names are still
-      unconfirmed.
-    * **``delivered_at``** — still ``None``. ``RecipientDateTime`` used to be
-      the only plausible candidate by name; the 2026-08-10 correction added a
-      second, ``ActualDeliveryDate``, which reads as the better-named
-      candidate but does not settle which one actually populates. Two
-      unconfirmed candidates is not a reason to guess between them — a real
-      delivered parcel has to decide, so this stays ``None`` with the
-      one-shot warning in :func:`_warn_first_delivered`.
-    * **``planned_from`` / ``planned_to``** — still ``None``. The earlier "no
-      ETA-shaped field was observed in the key list" is no longer true: the
-      2026-08-10 correction found ``ScheduledDeliveryDate`` and
-      ``AdjustedDate``. Their semantics (point estimate vs. window, which one
-      is "planned" vs. "adjusted") are unconfirmed, so this is deliberately
-      still not wired up — a decision for a real capture, not a guess.
-    * **``url``** — no public consumer tracking-page URL has ever been
-      captured for Nova Poshta anywhere in the research. Guessing a
-      query-parameter name risks a link that silently 404s for every user.
-    * **``history``** — always ``None``; see const.py and the module
-      docstring above.
-
-    ``pickup_point`` is ``WarehouseRecipient`` (the destination locker/branch)
-    — ``WarehouseSender`` is the origin side and stays raw-only. ``weight`` is
-    ``DocumentWeight`` with the unit assumed kilograms (unconfirmed).
+    * **``sender``/``receiver`` are geography, not identity** — this surface
+      names no party. A real regression from the old surface's
+      ``SenderFullNameEW``/``RecipientFullName``, accepted for the fields this
+      move gains.
+    * **``planned_from`` and ``planned_to`` are both ``scheduled_delivery_date``.**
+      The field is a single point estimate, not a ``from``/``to`` window (on
+      the one capture on file it lands 26 minutes before the final tracking
+      hop) — represented as a zero-width window rather than leaving one end
+      ``None``, so sorting on ``planned_from`` still works.
+    * **``delivered_at`` is inferred**, not read from a named field — see
+      :func:`_delivered_at`.
+    * **``pickup_point`` and ``raw_status`` come from the newest tracking hop**,
+      regardless of whether that hop's own code maps to ``at_pickup_point``.
+    * **``url`` is always constructible** once a tracking code exists, even for
+      a code the carrier does not (yet) recognise — the tracking *page* takes
+      any string, same as this API route.
     """
     check_payload_shape(raw)
 
-    tracking_code = raw.get("Number")
-    status_code = raw.get("StatusCode")
-    status = map_parcel_status(status_code)
+    tracking_code = raw.get("number")
+    hops = _tracking_hops(raw)
+    latest = hops[-1] if hops else None
+    code = _hop_code(latest) if latest else None
+    status = map_parcel_status(code)
     delivered = status is ParcelStatus.DELIVERED
-    if delivered:
-        _warn_first_delivered()
+    scheduled = raw.get("scheduled_delivery_date") or None
 
     return {
         "carrier": "Nova Post",
         "barcode": tracking_code,
-        "sender": raw.get("SenderFullNameEW") or None,
-        "receiver": raw.get("RecipientFullName") or raw.get("RecipientFullNameEW") or None,
+        "sender": _format_party(raw.get("sender")),
+        "receiver": _format_party(raw.get("recipient")),
         "status": status,
-        "raw_status": raw.get("Status") or status_code,
+        "raw_status": (latest.get("event_name") or code) if latest else None,
         "delivered": delivered,
-        "delivered_at": None,
-        "planned_from": None,
-        "planned_to": None,
+        "delivered_at": _delivered_at(hops) if delivered else None,
+        "planned_from": scheduled,
+        "planned_to": scheduled,
         "pickup": status is ParcelStatus.AT_PICKUP_POINT,
-        "pickup_point": raw.get("WarehouseRecipient") or None,
-        "url": None,
-        "weight": _parse_weight_kg(raw.get("DocumentWeight")),
-        "dimensions": None,
-        "history": None,
+        "pickup_point": _pickup_point(hops),
+        "url": (
+            TRACKING_URL_TEMPLATE.format(ttn=tracking_code) if tracking_code else None
+        ),
+        "weight": _parse_weight_kg(raw.get("total_weight")),
+        "dimensions": _dimensions(raw.get("parcels")),
+        "history": build_history(hops) if include_history else None,
         "raw": raw,
     }
 

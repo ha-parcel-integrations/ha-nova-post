@@ -22,17 +22,16 @@ def reset_one_shot_warnings():
 
     ``_uncertain_statuses_logged`` used to live here too (StatusCode 2's
     every-occurrence warning); removed along with the mechanism itself in the
-    2026-08-10 correction — see parcels.py.
+    2026-08-10 correction — see parcels.py. ``_nonempty_field_logged`` /
+    ``_first_delivered_logged`` (the old "first non-empty field" pre-1.0
+    mechanism) were removed in the 2026-08-13 surface move; replaced by
+    ``_schema_drift_logged`` and ``_delivered_at_inferred_logged``.
     """
     from custom_components.nova_post import parcels
 
-    for logged in (
-        parcels._unmapped_statuses_logged,
-        parcels._nonempty_field_logged,
-    ):
-        logged.clear()
+    parcels._unmapped_statuses_logged.clear()
     parcels._schema_drift_logged = False
-    parcels._first_delivered_logged = False
+    parcels._delivered_at_inferred_logged = False
     yield
 
 

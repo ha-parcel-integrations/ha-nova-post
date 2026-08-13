@@ -37,6 +37,15 @@
               "delivered_filter_amount": "Number of days or parcels to show."
             }
           },
+          "history": {
+            "name": "Parcel history",
+            "data": {
+              "include_history": "Include status history"
+            },
+            "data_description": {
+              "include_history": "Add a per-parcel history attribute listing each tracking event (timestamp, status, original text). Off by default."
+            }
+          },
           "polling": {
             "name": "Polling",
             "data": {
