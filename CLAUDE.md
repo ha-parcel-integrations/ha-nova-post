@@ -40,7 +40,7 @@ REST surface** (`carrier-research/nova-post.md#build`, addendum 2026-08-13),
 on the strength of a real captured payload (maintainer-supplied TTN `12348`,
 an in-flight CN→MD parcel) that confirmed `history`, `weight` (kg),
 `dimensions` (cm), `pickup_point` and a constructible `url` — everything the
-old surface lacked. Full mechanics live in `carrier-research/api/nova-post/`
+old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
 (private); this section is the HA-side decisions and what changed.
 
 - **`GET`, keyless, tracking code in the URL path — not a POST body.**
@@ -69,7 +69,7 @@ old surface lacked. Full mechanics live in `carrier-research/api/nova-post/`
   have rejected the cross-border form outright.
 - **The 57-code status map (`_STATUS_MAP` in `parcels.py`) replaced the old
   12-code seed wholesale**, sourced from Nova Post's own published table
-  (`carrier-research/api/nova-post/novapost-tracking.md#status-vocabulary`) —
+  (`carrier-research/nova-post/api/novapost-tracking.md#status-vocabulary`) —
   the same numeric `code` space `tracking[].code` uses. Map on `code` only,
   never `event_name` (server-rendered, localised text — the same trap as
   SunYou's `toLanguage`). The trap that matters most survives from the old
@@ -192,5 +192,5 @@ python -m pytest tests/ --cov=custom_components.nova_post
 
 Coverage must stay **above 95%** (silver `test-coverage` rule). Run before
 committing. A code change updates the README + this file + `docs/` in the same
-commit; the API reference lives in this carrier's directory under the private
-`carrier-research/api/`, never in this repo.
+commit; the API reference lives in `carrier-research/nova-post/api/` (this
+carrier's own directory, private), never in this repo.
