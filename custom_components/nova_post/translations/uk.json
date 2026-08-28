@@ -57,23 +57,23 @@
           }
         },
         "menu_options": {
-          "parcels": "Parcels",
-          "settings": "Settings"
+          "parcels": "Посилки",
+          "settings": "Налаштування"
         }
       },
       "parcels": {
-        "title": "Parcels",
+        "title": "Посилки",
         "data": {
-          "tracking_codes": "Tracking codes"
+          "tracking_codes": "Коди відстеження"
         }
       },
       "settings": {
-        "title": "Settings",
+        "title": "Налаштування",
         "data": {
-          "delivered_filter_type": "Delivered parcels: filter by",
-          "delivered_filter_amount": "Delivered parcels: amount",
-          "include_history": "Include status history",
-          "refresh_interval": "Refresh every"
+          "delivered_filter_type": "Доставлені посилки: фільтрувати за",
+          "delivered_filter_amount": "Доставлені посилки: кількість",
+          "include_history": "Додати історію статусів",
+          "refresh_interval": "Оновлювати кожні"
         }
       }
     },

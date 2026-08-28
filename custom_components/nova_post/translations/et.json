@@ -57,23 +57,23 @@
           }
         },
         "menu_options": {
-          "parcels": "Parcels",
-          "settings": "Settings"
+          "parcels": "Saadetised",
+          "settings": "Seaded"
         }
       },
       "parcels": {
-        "title": "Parcels",
+        "title": "Saadetised",
         "data": {
-          "tracking_codes": "Tracking codes"
+          "tracking_codes": "Jälgimiskoodid"
         }
       },
       "settings": {
-        "title": "Settings",
+        "title": "Seaded",
         "data": {
-          "delivered_filter_type": "Delivered parcels: filter by",
-          "delivered_filter_amount": "Delivered parcels: amount",
-          "include_history": "Include status history",
-          "refresh_interval": "Refresh every"
+          "delivered_filter_type": "Kohale toimetatud saadetised: filtreeri alusel",
+          "delivered_filter_amount": "Kohale toimetatud saadetised: kogus",
+          "include_history": "Kaasa oleku ajalugu",
+          "refresh_interval": "Värskenda iga"
         }
       }
     },

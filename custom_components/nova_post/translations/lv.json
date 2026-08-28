@@ -57,23 +57,23 @@
           }
         },
         "menu_options": {
-          "parcels": "Parcels",
-          "settings": "Settings"
+          "parcels": "Sūtījumi",
+          "settings": "Iestatījumi"
         }
       },
       "parcels": {
-        "title": "Parcels",
+        "title": "Sūtījumi",
         "data": {
-          "tracking_codes": "Tracking codes"
+          "tracking_codes": "Izsekošanas kodi"
         }
       },
       "settings": {
-        "title": "Settings",
+        "title": "Iestatījumi",
         "data": {
-          "delivered_filter_type": "Delivered parcels: filter by",
-          "delivered_filter_amount": "Delivered parcels: amount",
-          "include_history": "Include status history",
-          "refresh_interval": "Refresh every"
+          "delivered_filter_type": "Piegādātie sūtījumi: filtrēt pēc",
+          "delivered_filter_amount": "Piegādātie sūtījumi: daudzums",
+          "include_history": "Iekļaut statusa vēsturi",
+          "refresh_interval": "Atsvaidzināt ik pēc"
         }
       }
     },
