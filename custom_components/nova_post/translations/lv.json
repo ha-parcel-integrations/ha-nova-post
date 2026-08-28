@@ -55,6 +55,25 @@
               "refresh_interval": "Cik bieži integrācija pārbauda Nova Post sūtījumu atjauninājumus. Lēnāks intervāls ir saudzīgāks pret Nova Post API; noklusējuma 30 minūtes ir pietiekamas lielākajai daļai sūtījumu."
             }
           }
+        },
+        "menu_options": {
+          "parcels": "Parcels",
+          "settings": "Settings"
+        }
+      },
+      "parcels": {
+        "title": "Parcels",
+        "data": {
+          "tracking_codes": "Tracking codes"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "delivered_filter_type": "Delivered parcels: filter by",
+          "delivered_filter_amount": "Delivered parcels: amount",
+          "include_history": "Include status history",
+          "refresh_interval": "Refresh every"
         }
       }
     },

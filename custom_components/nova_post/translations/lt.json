@@ -55,6 +55,25 @@
               "refresh_interval": "Kaip dažnai integracija tikrina Nova Post siuntinių atnaujinimus. Lėtesnis intervalas švelnesnis Nova Post API; numatytosios 30 minučių pakanka daugumai siuntinių."
             }
           }
+        },
+        "menu_options": {
+          "parcels": "Parcels",
+          "settings": "Settings"
+        }
+      },
+      "parcels": {
+        "title": "Parcels",
+        "data": {
+          "tracking_codes": "Tracking codes"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "delivered_filter_type": "Delivered parcels: filter by",
+          "delivered_filter_amount": "Delivered parcels: amount",
+          "include_history": "Include status history",
+          "refresh_interval": "Refresh every"
         }
       }
     },
