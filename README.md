@@ -45,7 +45,7 @@ An unrecognised status still reports `unknown` rather than a wrong one, logging 
 
 ## Requirements
 
-- Home Assistant 2024.7 or newer
+- Home Assistant 2024.12 or newer
 - A Nova Post (Nova Poshta) parcel and its tracking number, from the shipping
   confirmation, the tracking page or the missed-delivery card — no account
   needed
@@ -94,6 +94,12 @@ Standard HA removal applies: **Settings → Devices & Services → Nova Post →
 | `sensor.nova_post_last_successful_update` | Diagnostic: when Nova Post was last polled successfully |
 
 A delivered parcel moves from its per-parcel sensor to the delivered sensor automatically.
+
+A **Deliveries** calendar entity is also created, showing the scheduled
+delivery date for active parcels — read-only, no extra API calls.
+
+A **Refresh** button entity forces an immediate poll, without waiting for the
+next scheduled interval.
 
 ## Parcel status reference
 
