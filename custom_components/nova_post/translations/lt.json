@@ -45,15 +45,6 @@
             "data_description": {
               "include_history": "Prideda kiekvienam siuntiniui istorijos atributą, kuriame išvardyti visi sekimo įvykiai (laiko žyma, būsena, originalus tekstas). Numatytai išjungta."
             }
-          },
-          "polling": {
-            "name": "Užklausos",
-            "data": {
-              "refresh_interval": "Atnaujinti kas"
-            },
-            "data_description": {
-              "refresh_interval": "Kaip dažnai integracija tikrina Nova Post siuntinių atnaujinimus. Lėtesnis intervalas švelnesnis Nova Post API; numatytosios 30 minučių pakanka daugumai siuntinių."
-            }
           }
         },
         "menu_options": {
@@ -72,8 +63,7 @@
         "data": {
           "delivered_filter_type": "Pristatytos siuntos: filtruoti pagal",
           "delivered_filter_amount": "Pristatytos siuntos: kiekis",
-          "include_history": "Įtraukti būsenos istoriją",
-          "refresh_interval": "Atnaujinti kas"
+          "include_history": "Įtraukti būsenos istoriją"
         }
       }
     },
@@ -83,15 +73,6 @@
     }
   },
   "selector": {
-    "refresh_interval": {
-      "options": {
-        "15": "15 minučių",
-        "30": "30 minučių",
-        "60": "60 minučių",
-        "120": "120 minučių",
-        "240": "240 minučių"
-      }
-    },
     "delivered_filter_type": {
       "options": {
         "days": "Dienos",

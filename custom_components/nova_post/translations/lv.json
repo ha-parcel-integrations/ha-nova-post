@@ -45,15 +45,6 @@
             "data_description": {
               "include_history": "Pievieno katram sūtījumam vēstures atribūtu, kurā uzskaitīts katrs izsekošanas notikums (laika zīmogs, statuss, oriģinālais teksts). Pēc noklusējuma izslēgts."
             }
-          },
-          "polling": {
-            "name": "Aptauja",
-            "data": {
-              "refresh_interval": "Atjaunināt ik pēc"
-            },
-            "data_description": {
-              "refresh_interval": "Cik bieži integrācija pārbauda Nova Post sūtījumu atjauninājumus. Lēnāks intervāls ir saudzīgāks pret Nova Post API; noklusējuma 30 minūtes ir pietiekamas lielākajai daļai sūtījumu."
-            }
           }
         },
         "menu_options": {
@@ -72,8 +63,7 @@
         "data": {
           "delivered_filter_type": "Piegādātie sūtījumi: filtrēt pēc",
           "delivered_filter_amount": "Piegādātie sūtījumi: daudzums",
-          "include_history": "Iekļaut statusa vēsturi",
-          "refresh_interval": "Atsvaidzināt ik pēc"
+          "include_history": "Iekļaut statusa vēsturi"
         }
       }
     },
@@ -83,15 +73,6 @@
     }
   },
   "selector": {
-    "refresh_interval": {
-      "options": {
-        "15": "15 minūtes",
-        "30": "30 minūtes",
-        "60": "60 minūtes",
-        "120": "120 minūtes",
-        "240": "240 minūtes"
-      }
-    },
     "delivered_filter_type": {
       "options": {
         "days": "Dienas",

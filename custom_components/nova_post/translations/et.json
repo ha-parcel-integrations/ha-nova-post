@@ -45,15 +45,6 @@
             "data_description": {
               "include_history": "Lisab iga paki juurde ajaloo atribuudi, mis loetleb kõik jälgimissündmused (ajatempel, olek, algne tekst). Vaikimisi väljas."
             }
-          },
-          "polling": {
-            "name": "Päringud",
-            "data": {
-              "refresh_interval": "Värskenda iga"
-            },
-            "data_description": {
-              "refresh_interval": "Kui sageli integratsioon kontrollib Nova Postilt pakiuuendusi. Aeglasem intervall on Nova Posti API suhtes leebem; vaikeväärtus 30 minutit sobib enamikule pakkidele."
-            }
           }
         },
         "menu_options": {
@@ -72,8 +63,7 @@
         "data": {
           "delivered_filter_type": "Kohale toimetatud saadetised: filtreeri alusel",
           "delivered_filter_amount": "Kohale toimetatud saadetised: kogus",
-          "include_history": "Kaasa oleku ajalugu",
-          "refresh_interval": "Värskenda iga"
+          "include_history": "Kaasa oleku ajalugu"
         }
       }
     },
@@ -83,15 +73,6 @@
     }
   },
   "selector": {
-    "refresh_interval": {
-      "options": {
-        "15": "15 minutit",
-        "30": "30 minutit",
-        "60": "60 minutit",
-        "120": "120 minutit",
-        "240": "240 minutit"
-      }
-    },
     "delivered_filter_type": {
       "options": {
         "days": "Päeva",

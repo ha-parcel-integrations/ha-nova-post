@@ -19,6 +19,7 @@ An unrecognised status still reports `unknown` rather than a wrong one, logging 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Options](#options)
+- [Dynamic polling](#dynamic-polling)
 - [Removal](#removal)
 - [Sensors](#sensors)
 - [Parcel status reference](#parcel-status-reference)
@@ -77,7 +78,29 @@ Open **Configure** on the integration entry:
 | Parcels | Add / remove | — | Manage the tracked codes. Changes apply immediately, no restart. |
 | Delivered parcels | Filter by / amount | last 7 days | How long delivered parcels stay visible on the delivered sensor. |
 | Parcel history | Include status history | off | Adds a per-parcel `history` attribute listing each tracking event. Off by default — it's a large attribute. |
-| Polling | Refresh every | 30 min | How often Nova Post is checked. Slower is gentler on their API. |
+
+## Dynamic polling
+
+Instead of polling Nova Post at the same rate around the clock, the
+integration adjusts its own cadence to what your tracked parcels are
+actually doing:
+
+- **Quiet hours** — no polling between 00:00–06:00 local time, aside from one
+  catch-up check at each end of that window (around midnight and around 6
+  AM).
+- **Hot (every 15 minutes)** — as soon as a tracked parcel is
+  `out_for_delivery`, starting an hour before its expected delivery time (or
+  immediately if no time is known).
+- **Mid (every 45 minutes)** — any other in-progress parcel.
+- **Fully stopped** — nothing is tracked, or every tracked parcel has been
+  delivered. Adding a parcel back (via the options dialog, the
+  `nova_post.track_parcel` service, or a dashboard button) resumes polling
+  immediately.
+- A small, fixed per-hub offset is added on top, so not every Nova Post hub
+  out there polls at exactly the same second.
+
+This is not user-configurable — it is the only polling behaviour this
+integration has.
 
 ## Removal
 
@@ -98,7 +121,7 @@ A delivered parcel moves from its per-parcel sensor to the delivered sensor auto
 A **Deliveries** calendar entity is also created, showing the scheduled
 delivery date for active parcels — read-only, no extra API calls.
 
-A **Refresh** button entity forces an immediate poll, without waiting for the
+A **Refresh** button entity forces an immediate poll without waiting for the
 next scheduled interval.
 
 ## Parcel status reference
@@ -179,7 +202,7 @@ statuses and events.
 
 ## Disclaimer
 
-This integration uses the same public, keyless tracking endpoint as the Nova Poshta consumer website. It is not affiliated with, endorsed by, or supported by Nova Poshta. Be gentle with the polling interval.
+This integration uses the same public, keyless tracking endpoint as the Nova Poshta consumer website. It is not affiliated with, endorsed by, or supported by Nova Poshta.
 
 ## Contributing
 
