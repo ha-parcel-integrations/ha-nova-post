@@ -126,6 +126,10 @@
         "name": "Saabuvad pakid",
         "unit_of_measurement": "pakki"
       },
+      "awaiting_pickup": {
+        "name": "Väljastuspunktis ootamas",
+        "unit_of_measurement": "pakki"
+      },
       "next_delivery": {
         "name": "Järgmine kättetoimetamine"
       },
