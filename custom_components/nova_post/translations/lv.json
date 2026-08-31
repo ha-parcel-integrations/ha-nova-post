@@ -128,7 +128,7 @@
       },
       "awaiting_pickup": {
         "name": "Gatavs saņemšanai",
-        "unit_of_measurement": "pakas"
+        "unit_of_measurement": "sūtījumi"
       },
       "next_delivery": {
         "name": "Nākamā piegāde"

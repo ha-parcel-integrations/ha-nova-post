@@ -128,7 +128,7 @@
       },
       "awaiting_pickup": {
         "name": "Paruošta atsiimti",
-        "unit_of_measurement": "siuntos"
+        "unit_of_measurement": "siuntinių"
       },
       "next_delivery": {
         "name": "Kitas pristatymas"

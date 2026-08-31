@@ -128,7 +128,7 @@
       },
       "awaiting_pickup": {
         "name": "Готово до отримання",
-        "unit_of_measurement": "посилки"
+        "unit_of_measurement": "посилок"
       },
       "next_delivery": {
         "name": "Наступна доставка"
