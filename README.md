@@ -46,7 +46,6 @@ An unrecognised status still reports `unknown` rather than a wrong one, logging 
 
 ## Requirements
 
-- Home Assistant 2024.12 or newer
 - A Nova Post (Nova Poshta) parcel and its tracking number, from the shipping
   confirmation, the tracking page or the missed-delivery card — no account
   needed
