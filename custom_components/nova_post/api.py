@@ -47,7 +47,7 @@ class NovaPostApiClient:
     control-tested against a protected sibling on the same host (every route
     under ``/mobileapp/v.1.1/`` answers ``401`` with no credential), and
     against a route-existence oracle that separates "no such route" from "no
-    such shipment" (see novapost-tracking.md). ``api.novapost.com`` and
+    such shipment"). ``api.novapost.com`` and
     ``api.novaposhta.ua`` are live-confirmed to serve byte-identical bodies for
     the same TTN — one shared backend, two brand hostnames — and this client
     targets the ``novaposhta.ua`` host to match the integration's existing

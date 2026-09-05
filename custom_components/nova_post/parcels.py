@@ -268,9 +268,8 @@ def check_payload_shape(raw: dict) -> None:
 def _tracking_hops(raw: dict) -> list[dict]:
     """Return ``tracking[]`` as a list of dicts, oldest→newest, as returned.
 
-    Confirmed order by the timestamps in the one real capture on file — see
-    novapost-tracking.md "What the real capture confirms". Non-dict entries
-    are dropped defensively rather than raising.
+    Confirmed order by the timestamps in the one real capture on file.
+    Non-dict entries are dropped defensively rather than raising.
     """
     hops = raw.get("tracking")
     if not isinstance(hops, list):
@@ -354,8 +353,7 @@ def _parse_weight_kg(value: Any) -> float | None:
     """Parse ``total_weight`` as a float, ``None`` on anything else.
 
     Confirmed kilograms on a real capture (``total_weight: 0.36`` against a
-    24×17×2 cm parcel) — see novapost-tracking.md "What the real capture
-    confirms".
+    24×17×2 cm parcel).
     """
     if value in (None, ""):
         return None
