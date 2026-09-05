@@ -30,11 +30,10 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# **2026-08-13: widened for the ``/site/v.1.0/`` REST surface**
-# (carrier-research/nova-post.md `## Build`, addendum 2026-08-13), which this
+# **2026-08-13: widened for the ``/site/v.1.0/`` REST surface**, which this
 # integration now calls instead of the JSON-RPC ``getStatusDocuments`` method.
-# That surface "takes any string" (novapost-tracking.md "Surface B") — it has
-# no documented format at all, unlike the old surface's strict 14-digit
+# That surface takes any string — it has no documented format at all, unlike
+# the old surface's strict 14-digit
 # ``DocumentNumber``. Two shapes are confirmed live: short numeric reference
 # codes (`12345`, `12348`, `12349`, 5 digits) and cross-border alphanumeric
 # TTNs (`SHCN8143247690`, 14 chars) alongside the original 14-digit Ukrainian
@@ -112,7 +111,7 @@ class NovaPostOptionsFlowHandler(OptionsFlow):
     options-update listener (which refreshes the coordinator), so new/removed
     per-parcel sensors appear and disappear immediately. Polling is dynamic
     and status-driven, unconditionally — there is no interval to configure
-    here (`carrier-research/dynamic-polling.md`).
+    here.
     """
 
     async def async_step_init(

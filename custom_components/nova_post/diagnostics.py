@@ -13,8 +13,7 @@ from . import NovaPostConfigEntry
 # cheap; under-redacting leaks a user's home address into a GitHub thread.
 #
 # **2026-08-13: rewritten for the ``/site/v.1.0/`` REST payload** (see
-# parcels.py and carrier-research/api/nova-post/novapost-tracking.md "Real
-# captured response") — the old JSON-RPC field names (``Number``,
+# parcels.py) — the old JSON-RPC field names (``Number``,
 # ``WarehouseRecipient``, ``CitySender``, …) no longer appear on the wire.
 #
 # The real capture on file carries no person name, phone or street address at

@@ -1,9 +1,7 @@
 """Nova Post public tracking API client.
 
 Targets ``novaposhta.ua``'s website tracking surface, ``/site/v.1.0/
-shipments/tracking/{ttn}`` — see carrier-research/api/nova-post/
-novapost-tracking.md for the full write-up. Contract the coordinator relies
-on:
+shipments/tracking/{ttn}``. Contract the coordinator relies on:
 
 * ``async_get_parcel`` returns the raw response body (a bare object, not a
   ``{data: [...]}`` envelope) on success,
@@ -15,10 +13,10 @@ on:
   already wraps those into ``UpdateFailed``.
 
 **2026-08-13: this replaces the ``novaposhta.ua`` JSON-RPC ``getStatusDocuments``
-client** (carrier-research/nova-post.md "## Build", addendum 2026-08-13) —
-moved for the richer confirmed payload (history/weight/dimensions/pickup_point/
-url), at the cost of losing named ``sender``/``receiver`` (this surface only
-carries geography). See parcels.py and CLAUDE.md for the full trade-off.
+client** — moved for the richer confirmed payload (history/weight/dimensions/
+pickup_point/url), at the cost of losing named ``sender``/``receiver`` (this
+surface only carries geography). See parcels.py and CLAUDE.md for the full
+trade-off.
 """
 from __future__ import annotations
 

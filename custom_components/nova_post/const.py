@@ -41,8 +41,8 @@ KNOWN_CAPABILITIES = frozenset(
 # literal None there.
 #
 # **2026-08-13: moved from getStatusDocuments to the /site/v.1.0/ REST
-# surface** (carrier-research/nova-post.md "## Build", addendum 2026-08-13) on
-# the strength of a real captured payload (TTN 12348). That surface confirms
+# surface** on the strength of a real captured payload (TTN 12348). That
+# surface confirms
 # ``weight`` (kg), ``dimensions`` (cm), ``pickup_point``, ``url`` (a real
 # constructible consumer deep link) and ``history`` (an ordered, geo-tagged
 # timeline) — everything the old surface lacked except delivery_window, which
@@ -57,9 +57,7 @@ CAPABILITIES = frozenset(
 )
 
 # The website's public tracking API (``/site/v.1.0/``), value-confirmed
-# 2026-08-13 against a real in-flight parcel — see
-# carrier-research/nova-post.md#surface-keyless-by-number-rest-novapostcom-sitev10
-# and carrier-research/api/nova-post/novapost-tracking.md#surface-b--the-website-api-sitev10-keyless.
+# 2026-08-13 against a real in-flight parcel.
 # GET, keyless, the tracking code travels in the URL path (unlike the old
 # JSON-RPC surface's request-body ``Documents`` list).
 #
@@ -80,7 +78,7 @@ TRACKING_API_URL = "https://api.novaposhta.ua/site/v.1.0/shipments/tracking/{ttn
 
 # The consumer tracking page this same surface backs — confirmed by reading
 # the site's own JS bundle: it calls exactly this REST route, client-side,
-# unauthenticated (carrier-research/api/nova-post/novapost-tracking.md#the-consumer-tracking-pages-call-this-route).
+# unauthenticated.
 # ``novaposhta.ua`` takes at most one optional locale segment and defaults
 # (Ukrainian) with none, so the no-prefix form is the one guaranteed to
 # resolve regardless of the user's language — unlike ``novapost.com``, which
@@ -103,8 +101,7 @@ DEFAULT_DELIVERED_FILTER_TYPE = "days"
 DEFAULT_DELIVERED_FILTER_AMOUNT = 7
 
 # Dynamic, status-driven polling — unconditional, no user-facing interval
-# option. See carrier-research/dynamic-polling.md for the full algorithm and
-# the reasoning behind it.
+# option.
 #
 # Quiet window: no polling between these local hours except the two anchors
 # below, for overnight / end-of-day catch-up.

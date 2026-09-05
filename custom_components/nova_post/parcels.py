@@ -7,10 +7,9 @@ coordinator (which is nearly identical everywhere), and it makes the mapping
 trivially unit-testable without spinning up HA.
 
 **2026-08-13: rewritten for the ``/site/v.1.0/`` REST surface**, replacing the
-``getStatusDocuments`` JSON-RPC mapping (carrier-research/nova-post.md "##
-Build", addendum 2026-08-13; full field table in carrier-research/api/
-nova-post/novapost-tracking.md). The trigger was a real captured payload (TTN
-``12348``, an in-flight CN→MD parcel) that confirmed ``history``, ``weight``
+``getStatusDocuments`` JSON-RPC mapping. The trigger was a real captured
+payload (TTN ``12348``, an in-flight CN→MD parcel) that confirmed
+``history``, ``weight``
 (kg), ``dimensions`` (cm), ``pickup_point`` and a constructible ``url`` — all
 of which the old surface lacked. The one thing lost in the move:
 ``sender``/``receiver`` carry geography (country/settlement) here, never a
@@ -58,8 +57,7 @@ NEW_ISSUE_URL = (
 )
 
 # ``tracking[].code`` → canonical ParcelStatus. Nova Post's own published
-# 57-code table (carrier-research/api/nova-post/novapost-tracking.md
-# "## Status vocabulary"), the authority — the app's independent 18-category
+# 57-code status table is the authority — the app's independent 18-category
 # bucketing corroborates it, in particular the trap that matters most: the
 # carrier's own "Delivered" wording (codes 7/8) means *arrived at the branch
 # or locker*, not handed over. That is ``at_pickup_point`` here; the carrier's
@@ -188,10 +186,9 @@ def parse_iso(value: str | None) -> datetime | None:
 # Pre-1.0 self-reporting (see .github/CONVENTIONS.md § Pre-1.0 releases)
 # ---------------------------------------------------------------------------
 
-# The full top-level key inventory of a real captured response (TTN 12348,
-# carrier-research/api/nova-post/novapost-tracking.md "Real captured
-# response"). A key outside this set is schema drift worth hearing about —
-# the public surface may have grown since this was written.
+# The full top-level key inventory of a real captured response (TTN 12348).
+# A key outside this set is schema drift worth hearing about — the public
+# surface may have grown since this was written.
 _KNOWN_TOP_LEVEL_FIELDS = frozenset(
     {
         "number",
@@ -235,10 +232,9 @@ def _warn_delivered_at_inferred() -> None:
 
     No field on this surface is named anything like ``delivered_at`` — the
     newest ``tracking[]`` hop whose code falls in the "Received" bucket is the
-    best candidate, not a confirmed one (carrier-research/api/nova-post/
-    novapost-tracking.md "What the real capture confirms"). This is a one-shot
-    heads-up, not a request for a bug report: if a user's own delivery
-    timestamp does not match what shows up here, that is useful to know.
+    best candidate, not a confirmed one. This is a one-shot heads-up, not a
+    request for a bug report: if a user's own delivery timestamp does not
+    match what shows up here, that is useful to know.
     """
     global _delivered_at_inferred_logged
     if _delivered_at_inferred_logged:
