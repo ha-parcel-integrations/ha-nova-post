@@ -30,19 +30,6 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# **2026-08-13: widened for the ``/site/v.1.0/`` REST surface**, which this
-# integration now calls instead of the JSON-RPC ``getStatusDocuments`` method.
-# That surface takes any string — it has no documented format at all, unlike
-# the old surface's strict 14-digit
-# ``DocumentNumber``. Two shapes are confirmed live: short numeric reference
-# codes (`12345`, `12348`, `12349`, 5 digits) and cross-border alphanumeric
-# TTNs (`SHCN8143247690`, 14 chars) alongside the original 14-digit Ukrainian
-# domestic TTN. 4-30 alphanumeric characters covers all three with a
-# deliberate buffer rather than a proven bound on either end — narrow it once
-# a real code shows the actual limits.
-_TRACKING_CODE_RE = re.compile(r"^[A-Za-z0-9]{4,30}$")
-
-
 def normalize_tracking_code(value: str) -> str:
     """Return the tracking code upper-cased with separators stripped.
 
@@ -53,8 +40,13 @@ def normalize_tracking_code(value: str) -> str:
 
 
 def valid_tracking_code(value: str) -> bool:
-    """Whether ``value`` looks like a Nova Post tracking code: 4-30 alphanumeric characters."""
-    return bool(_TRACKING_CODE_RE.match(value))
+    """Accept every non-empty code.
+
+    Carriers' real tracking-number formats vary too much and differ from any
+    one guessed shape, and an invalid code just comes back "not found" from
+    the API anyway.
+    """
+    return bool(value)
 
 
 def _current_parcels(entry: ConfigEntry) -> list[dict[str, str]]:

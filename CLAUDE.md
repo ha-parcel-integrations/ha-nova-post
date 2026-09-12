@@ -64,14 +64,16 @@ old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
   serve byte-identical bodies for the same TTN — one shared NOVA-group
   backend, two brand hostnames — chosen to match this integration's existing
   branding and its tracking-page URL.
-- **Tracking-code format widened to `^[A-Za-z0-9]{4,30}$`, and the surface
-  itself validates nothing** — "this route takes any string"
-  (`novapost-tracking.md` "Surface B"). Three shapes are confirmed live: the
-  original 14-digit Ukrainian domestic TTN, short numeric reference codes
-  (`12345`/`12348`/`12349`), and cross-border alphanumeric aliases
-  (`SHCN8143247690`, 14 chars). `normalize_tracking_code` now upper-cases and
-  keeps letters instead of stripping them — the old digits-only regex would
-  have rejected the cross-border form outright.
+- **Tracking codes are accepted unvalidated (any non-empty string) — the
+  surface itself validates nothing**, "this route takes any string"
+  (`novapost-tracking.md` "Surface B"). Real formats vary too much to gate on
+  client-side: confirmed shapes include the original 14-digit Ukrainian
+  domestic TTN, short numeric reference codes (`12345`/`12348`/`12349`), and
+  cross-border alphanumeric aliases (`SHCN8143247690`, 14 chars), and an
+  unrecognised code just comes back not-found from the API anyway.
+  `normalize_tracking_code` still upper-cases and keeps letters instead of
+  stripping them — the old digits-only regex would have rejected the
+  cross-border form outright.
 - **The 57-code status map (`_STATUS_MAP` in `parcels.py`) replaced the old
   12-code seed wholesale**, sourced from Nova Post's own published table
   (`carrier-research/nova-post/api/novapost-tracking.md#status-vocabulary`) —

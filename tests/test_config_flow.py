@@ -26,14 +26,14 @@ def test_normalize_tracking_code_strips_separators_and_upcases():
     assert normalize_tracking_code(None) == ""
 
 
-def test_valid_tracking_code_accepts_numeric_and_alphanumeric():
+def test_valid_tracking_code_accepts_any_non_empty_value():
     assert valid_tracking_code(CODE_A)  # 14-digit Ukrainian domestic TTN
     assert valid_tracking_code("12349")  # short consumer reference code
     assert valid_tracking_code(CROSS_BORDER_CODE)  # cross-border alias
-    assert valid_tracking_code("1234")  # 4 characters — the loosened floor
-    assert not valid_tracking_code("123")  # 3 characters — below the floor
-    assert not valid_tracking_code("A" * 31)  # too long
-    assert not valid_tracking_code("2045-000000")  # separator not stripped
+    assert valid_tracking_code("1234")
+    assert valid_tracking_code("123")
+    assert valid_tracking_code("A" * 31)
+    assert not valid_tracking_code("")
 
 
 async def test_user_flow_creates_hub_without_input(hass):
