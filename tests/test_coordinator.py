@@ -62,7 +62,7 @@ def out_for_delivery_sample(code: str = ACTIVE_CODE, **overrides: object) -> dic
 
 
 # ---------------------------------------------------------------------------
-# Dynamic polling (dynamic-polling.md Section 2.1, barcode-based) — pure
+# Dynamic polling (barcode-based) — pure
 # helpers
 # ---------------------------------------------------------------------------
 
