@@ -90,6 +90,7 @@ async def async_get_config_entry_diagnostics(
         "counts": {
             "incoming_active": len(coordinator.data or []),
             "delivered": len(coordinator.delivered or []),
+            "skipped_from_fetch": len(coordinator.delivered_codes),
         },
         "incoming": _redact(coordinator.data or []),
         "delivered": _redact(coordinator.delivered or []),
