@@ -9,7 +9,7 @@
 
 A custom Home Assistant integration that tracks your [Nova Post](https://novaposhta.ua) (Nova Poshta) parcels — Ukraine's largest parcel-locker and courier network, with cross-border delivery across Europe and the US. No account and no API key are needed — you enter the tracking number yourself, just like on the Nova Poshta website.
 
-Part of the [ha-parcel-integrations](https://ha-parcel-integrations.io) family: it publishes the same canonical parcel format, statuses and events as the other carrier integrations, so it plugs straight into the [Parcel Aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) and cross-carrier automations.
+Part of the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) family: it publishes the same canonical parcel format, statuses and events as the other carrier integrations, so it plugs straight into the [Parcel Aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) and cross-carrier automations.
 
 An unrecognised status still reports `unknown` rather than a wrong one, logging a one-shot warning with a ready-made issue link — if you see one, [please report it](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml).
 
@@ -192,13 +192,13 @@ logger:
 
 ## Related integrations
 
-This integration is part of [**ha-parcel-integrations**](https://ha-parcel-integrations.io) — a family of
+This integration is part of [**ha-parcel-integrations**](https://ha-parcel-integrations.github.io/) — a family of
 parcel-carrier integrations that all publish the same canonical parcel format,
 statuses and events.
 
 - [**Parcel Aggregator**](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) rolls every installed carrier
   up into one set of sensors.
-- Browse [the organisation](https://ha-parcel-integrations.io) for the current list of supported carriers.
+- Browse [the organisation](https://ha-parcel-integrations.github.io/) for the current list of supported carriers.
 
 ## Disclaimer
 
