@@ -127,7 +127,7 @@
         "unit_of_measurement": "paczek"
       },
       "awaiting_pickup": {
-        "name": "Oczekujące na odbiór",
+        "name": "Oczekuje na odbiór",
         "unit_of_measurement": "paczek"
       },
       "next_delivery": {
