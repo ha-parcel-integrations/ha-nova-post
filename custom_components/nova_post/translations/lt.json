@@ -76,7 +76,7 @@
     "delivered_filter_type": {
       "options": {
         "days": "Dienos",
-        "parcels": "Siuntinių skaičius"
+        "parcels": "Siuntų skaičius"
       }
     }
   },
@@ -123,25 +123,25 @@
     },
     "sensor": {
       "incoming_parcels": {
-        "name": "Gaunami siuntiniai",
-        "unit_of_measurement": "siuntinių"
+        "name": "Gaunamos siuntos",
+        "unit_of_measurement": "siuntos"
       },
       "awaiting_pickup": {
         "name": "Paruošta atsiimti",
-        "unit_of_measurement": "siuntinių"
+        "unit_of_measurement": "siuntos"
       },
       "next_delivery": {
         "name": "Kitas pristatymas"
       },
       "delivered_parcels": {
-        "name": "Pristatyti siuntiniai",
-        "unit_of_measurement": "siuntinių"
+        "name": "Pristatytos siuntos",
+        "unit_of_measurement": "siuntos"
       },
       "last_update": {
         "name": "Paskutinis sėkmingas atnaujinimas"
       },
       "parcel": {
-        "name": "Siuntinys {barcode}"
+        "name": "Siunta {barcode}"
       }
     }
   }

@@ -76,7 +76,7 @@
     "delivered_filter_type": {
       "options": {
         "days": "Dienas",
-        "parcels": "Sūtījumu skaits"
+        "parcels": "Paku skaits"
       }
     }
   },
@@ -123,25 +123,25 @@
     },
     "sensor": {
       "incoming_parcels": {
-        "name": "Ienākošie sūtījumi",
-        "unit_of_measurement": "sūtījumi"
+        "name": "Ienākošās pakas",
+        "unit_of_measurement": "pakas"
       },
       "awaiting_pickup": {
         "name": "Gatavs saņemšanai",
-        "unit_of_measurement": "sūtījumi"
+        "unit_of_measurement": "pakas"
       },
       "next_delivery": {
         "name": "Nākamā piegāde"
       },
       "delivered_parcels": {
-        "name": "Piegādātie sūtījumi",
-        "unit_of_measurement": "sūtījumi"
+        "name": "Piegādātās pakas",
+        "unit_of_measurement": "pakas"
       },
       "last_update": {
         "name": "Pēdējā veiksmīgā atjaunināšana"
       },
       "parcel": {
-        "name": "Sūtījums {barcode}"
+        "name": "Paka {barcode}"
       }
     }
   }
