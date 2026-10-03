@@ -124,18 +124,18 @@
     "sensor": {
       "incoming_parcels": {
         "name": "Příchozí zásilky",
-        "unit_of_measurement": "zásilek"
+        "unit_of_measurement": "zásilky"
       },
       "awaiting_pickup": {
         "name": "Připraveno k vyzvednutí",
-        "unit_of_measurement": "zásilek"
+        "unit_of_measurement": "zásilky"
       },
       "next_delivery": {
         "name": "Očekávané doručení"
       },
       "delivered_parcels": {
         "name": "Doručené zásilky",
-        "unit_of_measurement": "zásilek"
+        "unit_of_measurement": "zásilky"
       },
       "last_update": {
         "name": "Poslední úspěšná aktualizace"
