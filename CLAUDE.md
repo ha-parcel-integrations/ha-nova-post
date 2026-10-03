@@ -129,11 +129,7 @@ old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
   (`CONF_INCLUDE_HISTORY`, off by default), mirroring every other suite
   carrier's convention — including this one costing no extra request, unlike
   carriers where history needs a second call.
-- **The pre-1.0 self-reporting machinery was replaced, not extended.** The old
-  "first non-empty field" mechanism (`_EMPTY_ONLY_FIELD_NAMES`,
-  `_warn_first_nonempty_field`) existed for a payload whose values had only
-  ever been seen empty — that is no longer true; the payload is confirmed.
-  What is still a guess and still warns once: an unrecognised status `code`
+- **Pre-1.0 self-reporting covers only what is still a guess**, and warns once: an unrecognised status `code`
   (`_warn_unmapped_status`), an unknown top-level key
   (`_warn_schema_drift`/`check_payload_shape`, keyed off the presence of a
   `tracking` key rather than the old `StatusCode` key to tell a real response
