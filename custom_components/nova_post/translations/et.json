@@ -75,7 +75,7 @@
   "selector": {
     "delivered_filter_type": {
       "options": {
-        "days": "Päeva",
+        "days": "Päevad",
         "parcels": "Pakkide arv"
       }
     }
@@ -118,7 +118,7 @@
     },
     "calendar": {
       "deliveries": {
-        "name": "Kättetoimetamised"
+        "name": "Tarned"
       }
     },
     "sensor": {
@@ -131,7 +131,7 @@
         "unit_of_measurement": "pakki"
       },
       "next_delivery": {
-        "name": "Järgmine kättetoimetamine"
+        "name": "Järgmine tarne"
       },
       "delivered_parcels": {
         "name": "Kohale toimetatud pakid",

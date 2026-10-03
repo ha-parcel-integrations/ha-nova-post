@@ -123,7 +123,7 @@
     },
     "sensor": {
       "incoming_parcels": {
-        "name": "Colete în tranzit",
+        "name": "Colete primite",
         "unit_of_measurement": "colete"
       },
       "awaiting_pickup": {
