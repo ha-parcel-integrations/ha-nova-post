@@ -1,4 +1,5 @@
 """Calendar platform for the Nova Post parcel tracker integration."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -20,17 +21,20 @@ PARALLEL_UPDATES = 0
 _DEFAULT_EVENT_DURATION = timedelta(hours=1)
 
 
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: NovaPostConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Nova Post deliveries calendar from a config entry."""
-    async_add_entities([NovaPostDeliveriesCalendar(entry.runtime_data.coordinator, entry)])
+    async_add_entities(
+        [NovaPostDeliveriesCalendar(entry.runtime_data.coordinator, entry)]
+    )
 
 
-class NovaPostDeliveriesCalendar(CoordinatorEntity[NovaPostCoordinator], CalendarEntity):
+class NovaPostDeliveriesCalendar(
+    CoordinatorEntity[NovaPostCoordinator], CalendarEntity
+):
     """A read-only calendar of expected Nova Post deliveries.
 
     Each active tracked parcel with a known delivery moment becomes an event.

@@ -12,6 +12,7 @@ and nesting match the capture, values are made-up placeholders.
 Every ``code`` used below comes straight from
 carrier-research/api/nova-post/novapost-tracking.md#status-vocabulary.
 """
+
 from __future__ import annotations
 
 # Numeric TTNs — never a real waybill number, made up for these fixtures only.
@@ -20,7 +21,13 @@ DELIVERED_CODE = "20450000000002"
 PICKUP_CODE = "20450000000003"
 
 
-def _hop(code: str, event_name: str, *, date: str = "2026-04-18T02:17:54.178824Z", **overrides: object) -> dict:
+def _hop(
+    code: str,
+    event_name: str,
+    *,
+    date: str = "2026-04-18T02:17:54.178824Z",
+    **overrides: object,
+) -> dict:
     """Build one ``tracking[]`` entry, matching the real capture's shape."""
     hop = {
         "number": overrides.pop("number", "") or "",
@@ -43,7 +50,9 @@ def _hop(code: str, event_name: str, *, date: str = "2026-04-18T02:17:54.178824Z
     return hop
 
 
-def raw_response(code: str, hop_code: str, event_name: str, **overrides: object) -> dict:
+def raw_response(
+    code: str, hop_code: str, event_name: str, **overrides: object
+) -> dict:
     """Build a full response body with every shape-confirmed key present.
 
     One default tracking hop reflecting the requested status; ``overrides``

@@ -25,10 +25,11 @@ warns once: the delivered-at inference (no field is named anything like
 ``delivered_at`` — the newest "Received"-bucket ``tracking[]`` hop is the best
 candidate, not a confirmed one) and an unrecognised status code.
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -66,62 +67,62 @@ NEW_ISSUE_URL = (
 # superset of the other — an unmapped code still falls back to ``unknown``
 # with a one-shot warning, same as every other suite carrier.
 _STATUS_MAP: dict[str, ParcelStatus] = {
-    "1": ParcelStatus.REGISTERED,        # Ready to send
-    "2": ParcelStatus.PROBLEM,           # Deleted
-    "4": ParcelStatus.IN_TRANSIT,        # Accepted for sending
-    "5": ParcelStatus.IN_TRANSIT,        # Sent from the sender's division
-    "6": ParcelStatus.IN_TRANSIT,        # Arrived in the recipient's city
-    "7": ParcelStatus.AT_PICKUP_POINT,   # Arrived at the division
-    "8": ParcelStatus.AT_PICKUP_POINT,   # Arrived at the Postomat
-    "9": ParcelStatus.DELIVERED,         # Closed
-    "10": ParcelStatus.DELIVERED,        # Closed, money transfer sent to sender
-    "11": ParcelStatus.DELIVERED,        # Closed, sender received the money transfer
-    "13": ParcelStatus.IN_TRANSIT,       # Arrival at transit sorting centre
-    "16": ParcelStatus.IN_TRANSIT,       # Departure from transit sorting centre
-    "17": ParcelStatus.IN_TRANSIT,       # Transit-warehouse arrival (carrier: unused)
-    "19": ParcelStatus.IN_TRANSIT,       # Transit-warehouse departure (carrier: unused)
-    "30": ParcelStatus.IN_TRANSIT,       # Arrived at customs terminal
-    "31": ParcelStatus.IN_TRANSIT,       # Departed from customs terminal
-    "99": ParcelStatus.PROBLEM,          # Delivery to Postomat impossible
+    "1": ParcelStatus.REGISTERED,  # Ready to send
+    "2": ParcelStatus.PROBLEM,  # Deleted
+    "4": ParcelStatus.IN_TRANSIT,  # Accepted for sending
+    "5": ParcelStatus.IN_TRANSIT,  # Sent from the sender's division
+    "6": ParcelStatus.IN_TRANSIT,  # Arrived in the recipient's city
+    "7": ParcelStatus.AT_PICKUP_POINT,  # Arrived at the division
+    "8": ParcelStatus.AT_PICKUP_POINT,  # Arrived at the Postomat
+    "9": ParcelStatus.DELIVERED,  # Closed
+    "10": ParcelStatus.DELIVERED,  # Closed, money transfer sent to sender
+    "11": ParcelStatus.DELIVERED,  # Closed, sender received the money transfer
+    "13": ParcelStatus.IN_TRANSIT,  # Arrival at transit sorting centre
+    "16": ParcelStatus.IN_TRANSIT,  # Departure from transit sorting centre
+    "17": ParcelStatus.IN_TRANSIT,  # Transit-warehouse arrival (carrier: unused)
+    "19": ParcelStatus.IN_TRANSIT,  # Transit-warehouse departure (carrier: unused)
+    "30": ParcelStatus.IN_TRANSIT,  # Arrived at customs terminal
+    "31": ParcelStatus.IN_TRANSIT,  # Departed from customs terminal
+    "99": ParcelStatus.PROBLEM,  # Delivery to Postomat impossible
     "101": ParcelStatus.OUT_FOR_DELIVERY,  # Uploaded to the courier
-    "102": ParcelStatus.RETURNING,       # Returns (sender ordered a return)
-    "103": ParcelStatus.RETURNING,       # Refusal of shipment
-    "104": ParcelStatus.IN_TRANSIT,      # Redirecting
-    "105": ParcelStatus.PROBLEM,         # Utilization
-    "106": ParcelStatus.DELIVERED,       # Received; return-shipment docs created
-    "110": ParcelStatus.IN_TRANSIT,      # Transferred to temporary storage
-    "111": ParcelStatus.PROBLEM,         # Failed delivery attempt
-    "112": ParcelStatus.IN_TRANSIT,      # Delivery date postponed
-    "113": ParcelStatus.PROBLEM,         # Storage period expired
-    "114": ParcelStatus.IN_TRANSIT,      # Customs: awaiting clearance
-    "115": ParcelStatus.IN_TRANSIT,      # Arrived at customs terminal
-    "116": ParcelStatus.PROBLEM,         # Broker refusal — under resolution
-    "117": ParcelStatus.PROBLEM,         # Cargo not found or lost (customs)
-    "118": ParcelStatus.PROBLEM,         # Forbidden content — delivery impossible
-    "119": ParcelStatus.IN_TRANSIT,      # Customs: clearance in progress
-    "120": ParcelStatus.IN_TRANSIT,      # Customs: clearance completed
-    "121": ParcelStatus.IN_TRANSIT,      # Sent to destination city after customs
-    "122": ParcelStatus.IN_TRANSIT,      # Customs: preparing documents
-    "123": ParcelStatus.PROBLEM,         # Awaiting information from the recipient
-    "125": ParcelStatus.IN_TRANSIT,      # Customs: verifying
-    "126": ParcelStatus.IN_TRANSIT,      # Customs: document processing
-    "127": ParcelStatus.IN_TRANSIT,      # Customs: document processing
-    "128": ParcelStatus.IN_TRANSIT,      # Customs: document processing
-    "130": ParcelStatus.PROBLEM,         # Import prohibited by customs
-    "131": ParcelStatus.RETURNING,       # Return of uncleared cargo
-    "132": ParcelStatus.RETURNING,       # Preparing for return
-    "133": ParcelStatus.PROBLEM,         # Client communication re: customs comment
-    "134": ParcelStatus.IN_TRANSIT,      # Handed to the customs broker
-    "135": ParcelStatus.IN_TRANSIT,      # Placed in storage area
-    "138": ParcelStatus.PROBLEM,         # Delay: incorrect recipient information
-    "141": ParcelStatus.PROBLEM,         # Storage period expired
-    "144": ParcelStatus.PROBLEM,         # Storage period expired
-    "149": ParcelStatus.IN_TRANSIT,      # In storage
-    "155": ParcelStatus.PROBLEM,         # Transferred for disposal
-    "197": ParcelStatus.IN_TRANSIT,      # Customs inspection
-    "198": ParcelStatus.IN_TRANSIT,      # Customs inspection
-    "199": ParcelStatus.IN_TRANSIT,      # Customs: clearance stage
-    "999": ParcelStatus.UNKNOWN,         # Undetermined — the carrier's own catch-all
+    "102": ParcelStatus.RETURNING,  # Returns (sender ordered a return)
+    "103": ParcelStatus.RETURNING,  # Refusal of shipment
+    "104": ParcelStatus.IN_TRANSIT,  # Redirecting
+    "105": ParcelStatus.PROBLEM,  # Utilization
+    "106": ParcelStatus.DELIVERED,  # Received; return-shipment docs created
+    "110": ParcelStatus.IN_TRANSIT,  # Transferred to temporary storage
+    "111": ParcelStatus.PROBLEM,  # Failed delivery attempt
+    "112": ParcelStatus.IN_TRANSIT,  # Delivery date postponed
+    "113": ParcelStatus.PROBLEM,  # Storage period expired
+    "114": ParcelStatus.IN_TRANSIT,  # Customs: awaiting clearance
+    "115": ParcelStatus.IN_TRANSIT,  # Arrived at customs terminal
+    "116": ParcelStatus.PROBLEM,  # Broker refusal — under resolution
+    "117": ParcelStatus.PROBLEM,  # Cargo not found or lost (customs)
+    "118": ParcelStatus.PROBLEM,  # Forbidden content — delivery impossible
+    "119": ParcelStatus.IN_TRANSIT,  # Customs: clearance in progress
+    "120": ParcelStatus.IN_TRANSIT,  # Customs: clearance completed
+    "121": ParcelStatus.IN_TRANSIT,  # Sent to destination city after customs
+    "122": ParcelStatus.IN_TRANSIT,  # Customs: preparing documents
+    "123": ParcelStatus.PROBLEM,  # Awaiting information from the recipient
+    "125": ParcelStatus.IN_TRANSIT,  # Customs: verifying
+    "126": ParcelStatus.IN_TRANSIT,  # Customs: document processing
+    "127": ParcelStatus.IN_TRANSIT,  # Customs: document processing
+    "128": ParcelStatus.IN_TRANSIT,  # Customs: document processing
+    "130": ParcelStatus.PROBLEM,  # Import prohibited by customs
+    "131": ParcelStatus.RETURNING,  # Return of uncleared cargo
+    "132": ParcelStatus.RETURNING,  # Preparing for return
+    "133": ParcelStatus.PROBLEM,  # Client communication re: customs comment
+    "134": ParcelStatus.IN_TRANSIT,  # Handed to the customs broker
+    "135": ParcelStatus.IN_TRANSIT,  # Placed in storage area
+    "138": ParcelStatus.PROBLEM,  # Delay: incorrect recipient information
+    "141": ParcelStatus.PROBLEM,  # Storage period expired
+    "144": ParcelStatus.PROBLEM,  # Storage period expired
+    "149": ParcelStatus.IN_TRANSIT,  # In storage
+    "155": ParcelStatus.PROBLEM,  # Transferred for disposal
+    "197": ParcelStatus.IN_TRANSIT,  # Customs inspection
+    "198": ParcelStatus.IN_TRANSIT,  # Customs inspection
+    "199": ParcelStatus.IN_TRANSIT,  # Customs: clearance stage
+    "999": ParcelStatus.UNKNOWN,  # Undetermined — the carrier's own catch-all
 }
 
 # "Received" bucket — the carrier's own word for actually handed over, as
@@ -174,11 +175,11 @@ def parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value))
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed
 
 
@@ -213,7 +214,7 @@ _delivered_at_inferred_logged = False
 
 def _warn_schema_drift(fields: list[str]) -> None:
     """Log once when a real response carries a top-level key we never saw."""
-    global _schema_drift_logged
+    global _schema_drift_logged  # noqa: PLW0603 - one-shot warning flag, reset by tests
     if _schema_drift_logged:
         return
     _schema_drift_logged = True
@@ -236,7 +237,7 @@ def _warn_delivered_at_inferred() -> None:
     request for a bug report: if a user's own delivery timestamp does not
     match what shows up here, that is useful to know.
     """
-    global _delivered_at_inferred_logged
+    global _delivered_at_inferred_logged  # noqa: PLW0603 - one-shot warning flag, reset by tests
     if _delivered_at_inferred_logged:
         return
     _delivered_at_inferred_logged = True
@@ -328,7 +329,9 @@ def _delivered_at(hops: list[dict]) -> str | None:
     return None
 
 
-def build_history(hops: list[dict], *, max_events: int = HISTORY_MAX_EVENTS) -> list[dict]:
+def build_history(
+    hops: list[dict], *, max_events: int = HISTORY_MAX_EVENTS
+) -> list[dict]:
     """Build the canonical ``history`` list from ``tracking[]``.
 
     Each entry is ``{timestamp, status, raw_status}`` — identical across all
@@ -353,7 +356,7 @@ def _parse_weight_kg(value: Any) -> float | None:
     """Parse ``total_weight`` as a float, ``None`` on anything else.
 
     Confirmed kilograms on a real capture (``total_weight: 0.36`` against a
-    24×17×2 cm parcel).
+    24x17x2 cm parcel).
     """
     if value in (None, ""):
         return None
@@ -480,14 +483,12 @@ def apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dict
     shows.
     """
     options = entry.options
-    filter_type = options.get(
-        CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE
-    )
+    filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
     amount = int(
         options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT)
     )
     if filter_type == "days":
-        cutoff = datetime.now(timezone.utc) - timedelta(days=amount)
+        cutoff = datetime.now(UTC) - timedelta(days=amount)
         return [
             parcel
             for parcel in parcels

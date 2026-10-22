@@ -1,4 +1,5 @@
 """Tests for the Nova Post refresh button."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.nova_post.button import NovaPostRefreshButton

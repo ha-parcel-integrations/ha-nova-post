@@ -1,4 +1,5 @@
 """Tests for the Nova Post config and options flow."""
+
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.nova_post.config_flow import (
@@ -66,8 +67,11 @@ def _hub(parcels: list[dict]) -> MockConfigEntry:
 
 
 def _init_input(
-    *, add="", remove=None,
-    filter_type="days", amount=7,
+    *,
+    add="",
+    remove=None,
+    filter_type="days",
+    amount=7,
     include_history=False,
 ) -> dict:
     """Build the sectioned options-form submission."""
@@ -96,7 +100,9 @@ async def _open_options_step(hass, entry, step_id: str):
 
 async def test_options_parcel_list_can_be_cleared(hass):
     """A submitted empty list removes the final manually tracked parcel."""
-    entry = MockConfigEntry(domain=DOMAIN, options={CONF_PARCELS: [{CONF_TRACKING_CODE: "EXAMPLE111111"}]})
+    entry = MockConfigEntry(
+        domain=DOMAIN, options={CONF_PARCELS: [{CONF_TRACKING_CODE: "EXAMPLE111111"}]}
+    )
     entry.add_to_hass(hass)
     result = await _open_options_step(hass, entry, "parcels")
     result = await hass.config_entries.options.async_configure(
@@ -113,7 +119,12 @@ async def test_options_settings_preserve_parcel_list(hass):
     entry.add_to_hass(hass)
     result = await _open_options_step(hass, entry, "settings")
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {CONF_DELIVERED_FILTER_TYPE: "days", CONF_DELIVERED_FILTER_AMOUNT: 7, CONF_INCLUDE_HISTORY: False}
+        result["flow_id"],
+        {
+            CONF_DELIVERED_FILTER_TYPE: "days",
+            CONF_DELIVERED_FILTER_AMOUNT: 7,
+            CONF_INCLUDE_HISTORY: False,
+        },
     )
     assert result["type"] == "create_entry"
     assert result["data"][CONF_PARCELS] == parcels

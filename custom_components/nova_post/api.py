@@ -18,6 +18,7 @@ pickup_point/url), at the cost of losing named ``sender``/``receiver`` (this
 surface only carries geography). See parcels.py and CLAUDE.md for the full
 trade-off.
 """
+
 from __future__ import annotations
 
 import logging

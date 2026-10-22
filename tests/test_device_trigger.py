@@ -1,4 +1,5 @@
 """Tests for Nova Post device triggers."""
+
 from custom_components.nova_post.const import DOMAIN
 from custom_components.nova_post.device_trigger import (
     TRIGGER_EVENTS,

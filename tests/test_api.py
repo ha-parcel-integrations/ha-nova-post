@@ -1,14 +1,12 @@
 """Tests for the Nova Post API client."""
+
 import json
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import pytest
 
-from custom_components.nova_post.api import (
-    NovaPostApiClient,
-    NovaPostApiError,
-)
+from custom_components.nova_post.api import NovaPostApiClient, NovaPostApiError
 from custom_components.nova_post.const import TRACKING_API_URL
 
 from .payloads import ACTIVE_CODE, in_transit_sample
@@ -52,7 +50,9 @@ async def test_get_parcel_requests_the_documented_url():
 async def test_get_parcel_returns_none_on_404():
     """A bogus/unknown number answers a plain 404 — a normal state, not an
     error."""
-    client = NovaPostApiClient(_session_returning(404, {"errors": {"errorMessage": "not_found"}}))
+    client = NovaPostApiClient(
+        _session_returning(404, {"errors": {"errorMessage": "not_found"}})
+    )
     assert await client.async_get_parcel("20450000000000") is None
 
 
