@@ -14,9 +14,8 @@ shipments/tracking/{ttn}``. Contract the coordinator relies on:
 
 **2026-08-13: this replaces the ``novaposhta.ua`` JSON-RPC ``getStatusDocuments``
 client** — moved for the richer confirmed payload (history/weight/dimensions/
-pickup_point/url), at the cost of losing named ``sender``/``receiver`` (this
-surface only carries geography). See parcels.py and CLAUDE.md for the full
-trade-off.
+pickup_point/url), with ``sender``/``receiver`` left ``None`` (this surface
+carries geography, not names). See parcels.py and CLAUDE.md.
 """
 
 from __future__ import annotations

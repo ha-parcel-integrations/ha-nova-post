@@ -16,6 +16,7 @@ from custom_components.nova_post.const import (
     CONF_DELIVERED_FILTER_TYPE,
     DOMAIN,
     KNOWN_CAPABILITIES,
+    PENDING_CAPABILITIES,
     ParcelStatus,
 )
 from custom_components.nova_post.parcels import (
@@ -257,12 +258,11 @@ def test_normalize_pending_placeholder():
     assert parcel["url"] == "https://novaposhta.ua/tracking/20450000000009"
 
 
-def test_normalize_sender_receiver_are_geography_not_identity():
-    """This surface names no party — only country/settlement, unlike the old
-    JSON-RPC surface's SenderFullNameEW/RecipientFullName."""
+def test_normalize_sender_receiver_never_publish_geography():
+    """The party blocks hold only geography, which the contract forbids."""
     parcel = normalize_parcel(geo_parties_sample())
-    assert parcel["sender"] == "CN"  # no settlement on the sender side
-    assert parcel["receiver"] == "Chișinău, MD"
+    assert parcel["sender"] is None
+    assert parcel["receiver"] is None
 
 
 def test_normalize_sender_receiver_absent_is_none():
@@ -296,12 +296,22 @@ def test_normalize_dimensions_none_when_parcels_empty():
     assert normalize_parcel(in_transit_sample())["dimensions"] is None
 
 
-def test_normalize_planned_from_and_to_both_read_scheduled_delivery_date():
-    """A single point estimate, not a window — represented as a zero-width
-    window rather than leaving one end None."""
-    parcel = normalize_parcel(populated_sample())
+def test_normalize_planned_window_is_the_moment_to_end_of_day():
+    """One estimated moment means "from then, during that day"."""
+    sample = populated_sample()
+    sample["tracking"] = sample["tracking"][:1]
+    parcel = normalize_parcel(sample)
     assert parcel["planned_from"] == "2026-04-24T07:24:00.000000Z"
-    assert parcel["planned_from"] == parcel["planned_to"]
+    end = datetime.fromisoformat(parcel["planned_to"])
+    assert (end.hour, end.minute, end.second) == (23, 59, 59)
+    assert end.date() == parse_iso(parcel["planned_from"]).astimezone(end.tzinfo).date()
+
+
+def test_normalize_planned_is_empty_once_delivered():
+    parcel = normalize_parcel(populated_sample())
+    assert parcel["status"] is ParcelStatus.DELIVERED
+    assert parcel["planned_from"] is None
+    assert parcel["planned_to"] is None
 
 
 def test_normalize_history_disabled_by_default():
@@ -421,12 +431,17 @@ def test_capabilities_are_known_values():
     assert CAPABILITIES <= KNOWN_CAPABILITIES
 
 
+def test_pending_capabilities_are_known_values():
+    assert PENDING_CAPABILITIES <= KNOWN_CAPABILITIES
+
+
 def test_capabilities_reflect_the_rest_surface():
     assert {
         "weight",
         "dimensions",
         "delivery_window",
-        "pickup_point",
         "url",
         "history",
     } == CAPABILITIES
+    assert {"pickup_point"} == PENDING_CAPABILITIES
+    assert not CAPABILITIES & PENDING_CAPABILITIES

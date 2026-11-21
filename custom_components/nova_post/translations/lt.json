@@ -126,6 +126,10 @@
         "name": "Gaunamos siuntos",
         "unit_of_measurement": "siuntos"
       },
+      "en_route_to_pickup_point": {
+        "name": "Pakeliui į atsiėmimo punktą",
+        "unit_of_measurement": "siuntos"
+      },
       "awaiting_pickup": {
         "name": "Paruošta atsiimti",
         "unit_of_measurement": "siuntos"

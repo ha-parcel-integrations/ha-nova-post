@@ -126,6 +126,10 @@
         "name": "Saabuvad pakid",
         "unit_of_measurement": "pakki"
       },
+      "en_route_to_pickup_point": {
+        "name": "Teel väljastuspunkti",
+        "unit_of_measurement": "pakki"
+      },
       "awaiting_pickup": {
         "name": "Väljastuspunktis ootamas",
         "unit_of_measurement": "pakki"

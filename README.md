@@ -118,6 +118,7 @@ Standard HA removal applies: **Settings → Devices & Services → Nova Post →
 | `sensor.nova_post_incoming_parcels` | Number of active tracked parcels, full list under the `parcels` attribute |
 | `sensor.nova_post_parcel_<code>` | One per tracked parcel; state is the canonical status, attributes carry the full normalised parcel |
 | `sensor.nova_post_next_delivery` | Earliest expected delivery moment across all active parcels |
+| `sensor.nova_post_en_route_to_pickup_point` | Incoming parcels on their way to a pickup point that have not arrived yet |
 | `sensor.nova_post_awaiting_pickup` | Incoming parcels that are ready to collect at a pickup point |
 | `sensor.nova_post_delivered_parcels` | Recently delivered parcels (see the retention option) |
 | `calendar.nova_post_deliveries` | Read-only calendar of expected deliveries, no extra API calls |
@@ -193,9 +194,9 @@ logger:
 
 - **A parcel shows `unknown`** — Nova Post has not scanned it yet, or the tracking code is wrong. It will pick up automatically once scanned.
 - **A status logs "Unrecognised Nova Post tracking code"** — please [open an issue](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml) with the logged line so the mapping can be extended.
-- **`sender`/`receiver` show a country/city, never a name** — that is all this API exposes for either party; there is no name field on the wire.
+- **`sender`/`receiver` are empty** — this API exposes only a country/city for either party, never a name, so nothing is published.
 - **`delivered_at` looks slightly off** — it is inferred from the newest tracking event in the carrier's "Received" bucket, not a field the carrier names as such. [Open an issue](https://github.com/ha-parcel-integrations/ha-nova-post/issues/new?template=unrecognised_status.yml) if it does not match the real delivery time.
-- **The delivery-window sensor shows the same start and end time** — Nova Post gives a single estimated delivery moment, not a `from`/`to` window, so both ends read the same value.
+- **The delivery window runs to the end of the day** — Nova Post gives a single estimated delivery moment, so it is read as "from then, during that day" (end of day in Home Assistant's time zone).
 
 ## Related integrations
 

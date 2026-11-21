@@ -44,18 +44,19 @@ KNOWN_CAPABILITIES = frozenset(
 # **2026-08-13: moved from getStatusDocuments to the /site/v.1.0/ REST
 # surface** on the strength of a real captured payload (TTN 12348). That
 # surface confirms
-# ``weight`` (kg), ``dimensions`` (cm), ``pickup_point``, ``url`` (a real
+# ``weight`` (kg), ``dimensions`` (cm), ``url`` (a real
 # constructible consumer deep link) and ``history`` (an ordered, geo-tagged
 # timeline) — everything the old surface lacked except delivery_window, which
 # comes along for free from ``scheduled_delivery_date``. The trade: this
-# surface's ``sender``/``recipient`` carry geography (country/settlement) only,
-# never a name — the old ``SenderFullNameEW``/``RecipientFullName`` fields have
-# no equivalent here. ``sender``/``receiver`` are not part of
-# ``KNOWN_CAPABILITIES`` so that loss does not show up on the docs site; see
-# CLAUDE.md for the full trade-off writeup.
-CAPABILITIES = frozenset(
-    {"weight", "dimensions", "delivery_window", "pickup_point", "url", "history"}
-)
+# surface's ``sender``/``recipient`` carry geography only, so ``sender``/
+# ``receiver`` stay ``None`` (the contract allows names only). They are not part
+# of ``KNOWN_CAPABILITIES``.
+CAPABILITIES = frozenset({"weight", "dimensions", "delivery_window", "url", "history"})
+
+# ``pickup_point`` is read from the ``division_name`` of a hop that mapped to
+# ``at_pickup_point`` (codes 7/8). No real parcel has reached that state yet,
+# so the name is unconfirmed.
+PENDING_CAPABILITIES: frozenset[str] = frozenset({"pickup_point"})
 
 # The website's public tracking API (``/site/v.1.0/``), value-confirmed
 # 2026-08-13 against a real in-flight parcel.

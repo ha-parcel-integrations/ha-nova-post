@@ -12,11 +12,9 @@ payload (TTN ``12348``, an in-flight CN→MD parcel) that confirmed
 ``history``, ``weight``
 (kg), ``dimensions`` (cm), ``pickup_point`` and a constructible ``url`` — all
 of which the old surface lacked. The one thing lost in the move:
-``sender``/``receiver`` carry geography (country/settlement) here, never a
-name — the old surface's ``SenderFullNameEW``/``RecipientFullName`` have no
-equivalent on this one. ``sender``/``receiver`` are not part of
-``KNOWN_CAPABILITIES`` (const.py), so that loss does not show up as a
-capability regression on the docs site, but it is a real one.
+``sender``/``receiver`` are always ``None`` here: the payload's party blocks
+carry only geography and the contract wants names, never a location. They are
+not part of ``KNOWN_CAPABILITIES`` (const.py).
 
 The payload is now **confirmed**, not reconstructed, so most of this module's
 old "first non-empty field" self-reporting (built for a payload whose values
@@ -28,11 +26,13 @@ candidate, not a confirmed one) and an unrecognised status code.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from collections.abc import Iterable
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_DELIVERED_FILTER_AMOUNT,
@@ -284,36 +284,16 @@ def _hop_code(hop: dict) -> str | None:
     return str(code) if code not in (None, "") else None
 
 
-def _format_party(party: Any) -> str | None:
-    """Return a ``sender``/``recipient`` block as one display string.
-
-    This surface carries geography only — ``country_code``, ``settlement``,
-    ``divisionId``, latitude/longitude — never a name (unlike the old JSON-RPC
-    surface's ``SenderFullNameEW``/``RecipientFullName``). ``"Chișinău, MD"``
-    when both are present, one alone when only one is, ``None`` when neither
-    is (the sender side of an international parcel commonly has no
-    ``settlement`` at all — see the real capture).
-    """
-    if not isinstance(party, dict):
-        return None
-    settlement = str(party.get("settlement") or "").strip()
-    country = str(party.get("country_code") or "").strip()
-    if settlement and country:
-        return f"{settlement}, {country}"
-    return settlement or country or None
-
-
 def _pickup_point(hops: list[dict]) -> str | None:
-    """Return the newest tracking hop's ``division_name``, or ``None``.
+    """Return the ``division_name`` of the newest hop that reached a pickup point.
 
-    Not gated on status: the old surface's ``WarehouseRecipient`` was shown
-    regardless of whether the parcel had actually arrived yet, and this
-    mirrors that — the most recent hop's location is informative even while a
-    parcel is still in transit.
+    A scan location while the parcel is still travelling is not the point, so
+    only a branch or locker arrival counts.
     """
-    if not hops:
-        return None
-    return str(hops[-1].get("division_name") or "").strip() or None
+    for hop in reversed(hops):
+        if _STATUS_MAP.get(_hop_code(hop) or "") is ParcelStatus.AT_PICKUP_POINT:
+            return str(hop.get("division_name") or "").strip() or None
+    return None
 
 
 def _delivered_at(hops: list[dict]) -> str | None:
@@ -392,6 +372,108 @@ def _dimensions(parcels: Any) -> dict | None:
     }
 
 
+def _moment(value: Any, zone: tzinfo) -> tuple[datetime, bool, str] | None:
+    """Return ``(aware datetime, date_only, text)`` for a carrier time, or ``None``.
+
+    A naive time or a bare date gets ``zone``; an aware time keeps its offset
+    and, when it came in as a string, its own spelling.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        moment = datetime.combine(value, time.min, tzinfo=zone)
+        return moment, True, moment.isoformat()
+    elif isinstance(value, str) and value:
+        try:
+            if len(value) == 10:
+                moment = datetime.combine(
+                    date.fromisoformat(value), time.min, tzinfo=zone
+                )
+                return moment, True, moment.isoformat()
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        if parsed.tzinfo:
+            return parsed, False, value
+    else:
+        return None
+    moment = parsed if parsed.tzinfo else parsed.replace(tzinfo=zone)
+    return moment, False, moment.isoformat()
+
+
+def _end_of_day(moment: datetime, zone: tzinfo) -> datetime:
+    local = moment.astimezone(zone)
+    return datetime.combine(local.date(), time(23, 59, 59), tzinfo=zone)
+
+
+def planned_window(
+    start: Any, end: Any, *, zone: tzinfo
+) -> tuple[str | None, str | None]:
+    """Return ``(planned_from, planned_to)`` in the canonical window shape.
+
+    ``start`` and ``end`` are ISO strings, dates or datetimes, or ``None``; an
+    epoch number must be converted first (see ``to_iso_timestamp``). A window
+    keeps both ends. One moment with a time ends at ``23:59:59`` the same local
+    day; a date covers ``00:00:00`` to ``23:59:59``; two dates run from the
+    first day's start to the last day's end. Equal values are one moment,
+    reversed values are swapped, and ``planned_to`` is never set without
+    ``planned_from``. ``zone`` is the carrier's own zone: it dates naive times
+    and bare dates and decides which day a moment ends on, so a ``Z`` moment
+    still ends on the carrier's local day. When nothing is left of that day
+    after the moment, there is no ``planned_to``.
+    """
+    first = _moment(start, zone)
+    last = _moment(end, zone)
+    if first is None:
+        first, last = last, None
+    if first is None:
+        return None, None
+
+    def closing(moment: tuple[datetime, bool, str]) -> datetime:
+        return _end_of_day(moment[0], zone) if moment[1] else moment[0]
+
+    if last is not None and closing(last) < first[0]:
+        first, last = last, first
+    if last is not None and closing(last) == first[0]:
+        last = None
+
+    if last is None:
+        end_of_day = _end_of_day(first[0], zone)
+        return first[2], end_of_day.isoformat() if end_of_day > first[0] else None
+    return first[2], closing(last).isoformat() if last[1] else last[2]
+
+
+_NO_WINDOW_STATUSES = frozenset(
+    {ParcelStatus.AT_PICKUP_POINT, ParcelStatus.RETURNING, ParcelStatus.DELIVERED}
+)
+
+
+def planned_for_status(
+    status: ParcelStatus, planned_from: str | None, planned_to: str | None
+) -> tuple[str | None, str | None]:
+    """Empty the delivery window once the parcel is at its destination or done."""
+    if status in _NO_WINDOW_STATUSES:
+        return None, None
+    return planned_from, planned_to
+
+
+def is_pickup(
+    route_flag: bool | None,
+    status: ParcelStatus,
+    event_statuses: Iterable[ParcelStatus | None] = (),
+) -> bool:
+    """Whether the delivery route ends at a pickup point.
+
+    The carrier's own route flag wins; otherwise the parcel having reached
+    ``AT_PICKUP_POINT`` at any point counts, so the value survives collection.
+    """
+    if route_flag:
+        return True
+    return status is ParcelStatus.AT_PICKUP_POINT or any(
+        event is ParcelStatus.AT_PICKUP_POINT for event in event_statuses
+    )
+
+
 def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
     """Return a carrier-agnostic parcel dict with the payload under ``raw``.
 
@@ -402,19 +484,16 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
 
     Build decisions worth knowing (see CLAUDE.md for the full writeup):
 
-    * **``sender``/``receiver`` are geography, not identity** — this surface
-      names no party. A real regression from the old surface's
-      ``SenderFullNameEW``/``RecipientFullName``, accepted for the fields this
-      move gains.
-    * **``planned_from`` and ``planned_to`` are both ``scheduled_delivery_date``.**
-      The field is a single point estimate, not a ``from``/``to`` window (on
-      the one capture on file it lands 26 minutes before the final tracking
-      hop) — represented as a zero-width window rather than leaving one end
-      ``None``, so sorting on ``planned_from`` still works.
+    * **``sender``/``receiver`` are always ``None``** — the party blocks hold
+      only geography and the contract allows names only.
+    * **``scheduled_delivery_date`` is one moment**, so ``planned_from`` is that
+      moment and ``planned_to`` the end of the same day in Home Assistant's
+      zone (the carrier spans several); both are emptied once the parcel is
+      at a pickup point, returning or delivered.
     * **``delivered_at`` is inferred**, not read from a named field — see
       :func:`_delivered_at`.
-    * **``pickup_point`` and ``raw_status`` come from the newest tracking hop**,
-      regardless of whether that hop's own code maps to ``at_pickup_point``.
+    * **``pickup`` is sticky**: any hop that mapped to ``at_pickup_point``
+      sets it, so a collected parcel keeps it and its ``pickup_point``.
     * **``url`` is always constructible** once a tracking code exists, even for
       a code the carrier does not (yet) recognise — the tracking *page* takes
       any string, same as this API route.
@@ -427,21 +506,33 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
     code = _hop_code(latest) if latest else None
     status = map_parcel_status(code)
     delivered = status is ParcelStatus.DELIVERED
-    scheduled = raw.get("scheduled_delivery_date") or None
+    planned_from, planned_to = planned_for_status(
+        status,
+        *planned_window(
+            raw.get("scheduled_delivery_date") or None,
+            None,
+            zone=dt_util.get_default_time_zone(),
+        ),
+    )
+    pickup = is_pickup(
+        None,
+        status,
+        (_STATUS_MAP.get(_hop_code(hop) or "") for hop in hops),
+    )
 
     return {
         "carrier": "Nova Post",
         "barcode": tracking_code,
-        "sender": _format_party(raw.get("sender")),
-        "receiver": _format_party(raw.get("recipient")),
+        "sender": None,
+        "receiver": None,
         "status": status,
         "raw_status": (latest.get("event_name") or code) if latest else None,
         "delivered": delivered,
         "delivered_at": _delivered_at(hops) if delivered else None,
-        "planned_from": scheduled,
-        "planned_to": scheduled,
-        "pickup": status is ParcelStatus.AT_PICKUP_POINT,
-        "pickup_point": _pickup_point(hops),
+        "planned_from": planned_from,
+        "planned_to": planned_to,
+        "pickup": pickup,
+        "pickup_point": _pickup_point(hops) if pickup else None,
         "url": (
             TRACKING_URL_TEMPLATE.format(ttn=tracking_code) if tracking_code else None
         ),

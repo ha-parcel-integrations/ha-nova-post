@@ -41,20 +41,17 @@ This repo follows it exactly.
 
 **2026-08-13: moved from the `novaposhta.ua` JSON-RPC surface
 (`getStatusDocuments`) to the `/site/v.1.0/shipments/tracking/{ttn}` website
-REST surface** (`carrier-research/nova-post.md#build`, addendum 2026-08-13),
+REST surface**,
 on the strength of a real captured payload (maintainer-supplied TTN `12348`,
 an in-flight CN→MD parcel) that confirmed `history`, `weight` (kg),
 `dimensions` (cm), `pickup_point` and a constructible `url` — everything the
-old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
-(private); this section is the HA-side decisions and what changed.
+old surface lacked. This section is the HA-side decisions and what changed.
 
 - **`GET`, keyless, tracking code in the URL path — not a POST body.**
   `TRACKING_API_URL` in `const.py` is now a `.format(ttn=...)` template; the
   old surface's `Documents` list body is gone. No headers, no key, nothing to
-  register — control-tested against a protected sibling on the same host
-  (`/mobileapp/v.1.1/` answers `401` with no credential) and against a
-  route-existence oracle that separates "no such route" from "no such
-  shipment", both in `novapost-tracking.md`.
+  register (a protected sibling on the same host, `/mobileapp/v.1.1/`,
+  answers `401` with no credential; this route does not).
 - **Not-found is a plain HTTP 404, not an in-body status code.** The old
   surface always answered `200`/`success: true` and branched on
   `StatusCode == "3"`; this one answers `404 {"errorMessage": "not_found"}`
@@ -65,8 +62,7 @@ old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
   backend, two brand hostnames — chosen to match this integration's existing
   branding and its tracking-page URL.
 - **Tracking codes are accepted unvalidated (any non-empty string) — the
-  surface itself validates nothing**, "this route takes any string"
-  (`novapost-tracking.md` "Surface B"). Real formats vary too much to gate on
+  surface itself validates nothing**. Real formats vary too much to gate on
   client-side: confirmed shapes include the original 14-digit Ukrainian
   domestic TTN, short numeric reference codes (`12345`/`12348`/`12349`), and
   cross-border alphanumeric aliases (`SHCN8143247690`, 14 chars), and an
@@ -75,23 +71,17 @@ old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
   stripping them — the old digits-only regex would have rejected the
   cross-border form outright.
 - **The 57-code status map (`_STATUS_MAP` in `parcels.py`) replaced the old
-  12-code seed wholesale**, sourced from Nova Post's own published table
-  (`carrier-research/nova-post/api/novapost-tracking.md#status-vocabulary`) —
+  12-code seed wholesale**, sourced from Nova Post's own published table —
   the same numeric `code` space `tracking[].code` uses. Map on `code` only,
   never `event_name` (server-rendered, localised text — the same trap as
   SunYou's `toLanguage`). The trap that matters most survives from the old
   map: codes `7`/`8` ("arrived at branch/locker") are `at_pickup_point`, not
   `delivered` — the carrier's own word for handed-over is "Received"
   (`9`/`10`/`11`/`106`).
-- **`sender`/`receiver` are now geography, not identity — a real regression.**
-  This surface's `sender`/`recipient` blocks carry only `country_code`,
-  `settlement`, `divisionId` and coordinates; no name field exists anywhere on
-  the wire. The old surface's `SenderFullNameEW`/`RecipientFullName` have no
-  equivalent here. `_format_party()` renders `"Chișinău, MD"` (settlement +
-  country) or whichever half is present. Accepted deliberately for the fields
-  this move gains — `sender`/`receiver` are not part of `KNOWN_CAPABILITIES`,
-  so this loss does not show up on the docs site's capability table; it only
-  shows up here and in `## Log`-style commit messages.
+- **`sender`/`receiver` are always `None`.** This surface's `sender`/`recipient`
+  blocks carry only `country_code`, `settlement`, `divisionId` and coordinates;
+  no name field exists on the wire, and the contract allows names only, never a
+  location. They are not part of `KNOWN_CAPABILITIES`.
 - **`delivered_at` is inferred, not read from a named field.** No field on
   this surface is named anything like `delivered_at` — `_delivered_at()`
   scans `tracking[]` backwards for the newest hop whose `code` is in the
@@ -99,16 +89,21 @@ old surface lacked. Full mechanics live in `carrier-research/nova-post/api/`
   `_warn_delivered_at_inferred` the first time this fires — a heads-up, not a
   bug report request, since it *is* now populated (unlike the old surface,
   where it stayed `None` forever).
-- **`planned_from` and `planned_to` are both `scheduled_delivery_date`.** The
-  field is a single point estimate, not a `from`/`to` window (on the one
-  capture on file it lands 26 minutes before the final tracking hop) —
-  represented as a zero-width window rather than leaving one end `None`, so
-  `sort_parcels_by_ts` on `planned_from` still works and the delivery-window
-  sensor still shows something.
-- **`pickup_point` and `raw_status` come from the newest `tracking[]` hop**,
-  not gated on the current status — mirrors the old surface's
-  `WarehouseRecipient`, which was shown regardless of whether the parcel had
-  actually arrived.
+- **`scheduled_delivery_date` is one moment.** `planned_from` is that moment,
+  `planned_to` the end of the same day in Home Assistant's zone (the carrier
+  spans several zones, so the HA zone is used). Both are emptied at
+  `at_pickup_point`, `returning` and `delivered`.
+- **`pickup` is sticky.** Any `tracking[]` hop whose code maps to
+  `at_pickup_point` (7/8) sets it, so a collected parcel keeps it. There is no
+  structured route field. `pickup_point` is the `division_name` of the newest
+  such hop and is `None` unless `pickup`; a transit scan location is never the
+  point. Whether `division_name` on a code 7/8 hop is the branch or locker name
+  is unconfirmed (no real parcel has reached a pickup point yet), so
+  `pickup_point` sits in `PENDING_CAPABILITIES`.
+- **Both pickup sensors exist** (`awaiting_pickup`, `en_route_to_pickup_point`)
+  although no real parcel has shown a pickup state yet; they read 0 until then.
+  A parcel is never `delivered` while `returning`: no back-at-sender signal is
+  known.
 - **`url` is always constructible once a tracking code exists**, even for a
   code the carrier does not (yet) recognise — `TRACKING_URL_TEMPLATE` in
   `const.py` is `https://novaposhta.ua/tracking/{ttn}` (no locale prefix: the
@@ -157,5 +152,4 @@ python -m pytest tests/ --cov=custom_components.nova_post
 
 Coverage must stay **above 95%** (silver `test-coverage` rule). Run before
 committing. A code change updates the README + this file + `docs/` in the same
-commit; the API reference lives in `carrier-research/nova-post/api/` (this
-carrier's own directory, private), never in this repo.
+commit.

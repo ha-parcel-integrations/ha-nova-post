@@ -126,6 +126,10 @@
         "name": "Посилки в дорозі",
         "unit_of_measurement": "посилок"
       },
+      "en_route_to_pickup_point": {
+        "name": "Прямує до пункту видачі",
+        "unit_of_measurement": "посилок"
+      },
       "awaiting_pickup": {
         "name": "Готово до отримання",
         "unit_of_measurement": "посилок"

@@ -1,16 +1,10 @@
 """Sample Nova Post (``/site/v.1.0/shipments/tracking/{ttn}``) payloads shared
 by the test suite.
 
-**2026-08-13: rewritten for the REST surface** (carrier-research/nova-post.md
-`## Build`, addendum 2026-08-13). Unlike the old JSON-RPC fixtures these are
-no longer "every field present but empty" placeholders — the payload is now
-*confirmed*, not reconstructed (a real TTN, `12348`, returned a fully
-populated body; see carrier-research/api/nova-post/novapost-tracking.md
-"Real captured response"). These fixtures follow that real shape; field names
-and nesting match the capture, values are made-up placeholders.
+Modelled on a real captured response for the REST surface: field names and
+nesting match the capture, values are made-up placeholders.
 
-Every ``code`` used below comes straight from
-carrier-research/api/nova-post/novapost-tracking.md#status-vocabulary.
+Every ``code`` used below comes from Nova Post's own published status table.
 """
 
 from __future__ import annotations
