@@ -42,6 +42,7 @@ An unrecognised status still reports `unknown` rather than a wrong one, logging 
 - Optional per-parcel status history (opt-in, off by default)
 - Summary sensors: incoming parcels, recently delivered parcels
 - `nova_post.track_parcel` / `nova_post.untrack_parcel` services, so a dashboard button can add a parcel
+- A `contents` note per parcel (what is in it, in your own words), set with `nova_post.update_contents` or the `contents` field of `nova_post.track_parcel`
 - Events + device triggers for no-code automations (parcel registered, status changed, delivered, delivery time changed)
 - Manual refresh button and a diagnostic last-update sensor
 
@@ -168,8 +169,11 @@ Every payload is the full normalised parcel plus the hub's `device_id`. Events a
 
 | Service | Fields | Description |
 |---|---|---|
-| `nova_post.track_parcel` | `tracking_code` | Start tracking a parcel |
+| `nova_post.track_parcel` | `tracking_code`, `contents` (optional) | Start tracking a parcel |
 | `nova_post.untrack_parcel` | `tracking_code` | Stop tracking a parcel |
+| `nova_post.update_contents` | `tracking_code`, `contents` | Set, replace or clear (empty text) a note on what is in a parcel |
+
+The `contents` text is stored locally, never sent to Nova Post, and fills the parcel's `contents` field; it titles the parcel's calendar event and shows on the next-delivery sensor.
 
 ## Examples
 

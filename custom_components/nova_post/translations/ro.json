@@ -88,6 +88,10 @@
         "tracking_code": {
           "name": "Cod de urmărire",
           "description": "Codul de urmărire Nova Post."
+        },
+        "contents": {
+          "name": "Conținut",
+          "description": "Ce se află în colet, cu cuvintele tale. Apelarea din nou pentru un colet urmărit înlocuiește conținutul; un text gol îl șterge."
         }
       }
     },
@@ -98,6 +102,20 @@
         "tracking_code": {
           "name": "Cod de urmărire",
           "description": "Codul de urmărire Nova Post a cărui urmărire va fi oprită."
+        }
+      }
+    },
+    "update_contents": {
+      "name": "Actualizează conținutul coletului",
+      "description": "Setează, cu cuvintele tale, ce se află într-un colet, pentru un cod de urmărire. Un text gol șterge conținutul.",
+      "fields": {
+        "tracking_code": {
+          "name": "Cod de urmărire",
+          "description": "Codul de urmărire Nova Post."
+        },
+        "contents": {
+          "name": "Conținut",
+          "description": "Ce se află în colet, cu cuvintele tale. Un text gol îl șterge."
         }
       }
     }

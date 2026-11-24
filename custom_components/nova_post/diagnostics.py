@@ -49,6 +49,7 @@ TO_REDACT = {
     "barcode",
     "sender",
     "receiver",
+    "contents",
     "pickup_point",
     "url",
     # Nova Post /site/v.1.0/ payload fields (see parcels.py)

@@ -88,6 +88,10 @@
         "tracking_code": {
           "name": "Jälgimiskood",
           "description": "Nova Posti jälgimiskood."
+        },
+        "contents": {
+          "name": "Sisu",
+          "description": "Mis pakis on, oma sõnadega. Jälgitava pakiga uuesti kutsumine asendab sisu; tühi tekst kustutab selle."
         }
       }
     },
@@ -98,6 +102,20 @@
         "tracking_code": {
           "name": "Jälgimiskood",
           "description": "Nova Posti jälgimiskood, mille jälgimine tuleb lõpetada."
+        }
+      }
+    },
+    "update_contents": {
+      "name": "Uuenda paki sisu",
+      "description": "Määra oma sõnadega, mis pakis on, jälgimiskoodi järgi. Tühi tekst kustutab sisu.",
+      "fields": {
+        "tracking_code": {
+          "name": "Jälgimiskood",
+          "description": "Nova Posti jälgimiskood."
+        },
+        "contents": {
+          "name": "Sisu",
+          "description": "Mis pakis on, oma sõnadega. Tühi tekst kustutab selle."
         }
       }
     }

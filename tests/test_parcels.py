@@ -147,6 +147,7 @@ CANONICAL_KEYS = [
     "barcode",
     "sender",
     "receiver",
+    "contents",
     "status",
     "raw_status",
     "delivered",
@@ -182,6 +183,7 @@ def test_normalize_delivered_parcel(caplog):
     # No name field on this surface at all.
     assert parcel["sender"] is None
     assert parcel["receiver"] is None
+    assert parcel["contents"] is None
     # Always constructible once a barcode exists.
     assert parcel["url"] == f"https://novaposhta.ua/tracking/{DELIVERED_CODE}"
     assert parcel["weight"] is None

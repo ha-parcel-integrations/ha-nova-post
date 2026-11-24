@@ -88,6 +88,10 @@
         "tracking_code": {
           "name": "Sledovací kód",
           "description": "Sledovací kód Nova Post."
+        },
+        "contents": {
+          "name": "Obsah",
+          "description": "Co je v balíku, vlastními slovy. Opětovné volání pro sledovaný balík obsah nahradí; prázdný text jej smaže."
         }
       }
     },
@@ -98,6 +102,20 @@
         "tracking_code": {
           "name": "Sledovací kód",
           "description": "Sledovací kód Nova Post, který se má přestat sledovat."
+        }
+      }
+    },
+    "update_contents": {
+      "name": "Aktualizovat obsah balíku",
+      "description": "Nastavte vlastními slovy, co je v balíku s daným sledovacím číslem. Prázdný text obsah smaže.",
+      "fields": {
+        "tracking_code": {
+          "name": "Sledovací kód",
+          "description": "Sledovací kód Nova Post."
+        },
+        "contents": {
+          "name": "Obsah",
+          "description": "Co je v balíku, vlastními slovy. Prázdný text jej smaže."
         }
       }
     }
